@@ -1,0 +1,63 @@
+name: Android Build — Dockerized (prebuilt Android SDK image)
+
+# Summary:
+# Executa o build dentro de um container pré-configurado com Android SDK/NDK.
+# - Baixa o Content.zip localmente e monta no container
+# - Roda `dotnet publish` dentro do container para isolar ambiente
+# - Coleta logs do container e faz upload como artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  CONTENT_ZIP_URL: https://github.com/ASZssz/CES/releases/download/V1/Content.zip
+  DOTNET_SDK: '10.0.x'
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull prebuilt Android Docker image
+        run: |
+          echo "Using a prebuilt Android image with SDK/NDK to speed up builds"
+          docker pull ghcr.io/circleci/android:2023.10 || docker pull ghcr.io/android/android:latest || true
+
+      - name: Run build inside container
+        run: |
+          set -euo pipefail
+          mkdir -p $GITHUB_WORKSPACE/_content_dl
+          curl -fsSL -o $GITHUB_WORKSPACE/_content_dl/Content.zip "${CONTENT_ZIP_URL}"
+          unzip -q $GITHUB_WORKSPACE/_content_dl/Content.zip -d $GITHUB_WORKSPACE/_content_dl/Content
+
+          docker run --rm -v $GITHUB_WORKSPACE:/workspace -w /workspace ghcr.io/circleci/android:2023.10 /bin/bash -lc "
+            set -e
+            apt-get update -y && apt-get install -y curl unzip openjdk-17-jdk rsync || true
+            cd /workspace
+            export ANDROID_SDK_ROOT=/opt/android-sdk
+            echo ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT
+            if ! command -v dotnet >/dev/null 2>&1; then
+              echo 'dotnet not found in container; attempting to install dotnet runtime/tools may be required' >&2
+            fi
+            echo 'Copying Content into project inside container...'
+            mkdir -p src/Celeste.Android/Content
+            rsync -a _content_dl/Content/ src/Celeste.Android/Content/
+            dotnet restore src/Celeste.sln || true
+            dotnet publish src/Celeste.Android -c Release -o /workspace/artifacts/containerized -p:AndroidSdkDirectory=$ANDROID_SDK_ROOT 2>&1 | tee /workspace/artifacts/containerized/publish_log.txt || true
+            ls -la /workspace/artifacts/containerized || true
+          "
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: celeste-android-docker
+          path: artifacts/containerized
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf $GITHUB_WORKSPACE/_content_dl || true

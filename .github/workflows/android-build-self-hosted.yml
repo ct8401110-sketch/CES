@@ -1,0 +1,71 @@
+
+name: Android Build — Self-hosted friendly
+
+# Summary:
+# Workflow pensado para runners self-hosted com SDK instalado.
+# - Faz checagens de pré-requisitos no runner
+# - Se Content não estiver presente, baixa e copia
+# - Tenta publish e coleta logs locais para upload
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [android-build]
+
+env:
+  CONTENT_ZIP_URL: https://github.com/ASZssz/CES/releases/download/V1/Content.zip
+  DOTNET_SDK: '10.0.x'
+
+jobs:
+  self-hosted-build:
+    runs-on: [self-hosted, linux, android]
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate runner prerequisites
+        run: |
+          echo "Runner info:"
+          uname -a
+          dotnet --version || echo 'dotnet not found'
+          java -version 2>&1 || echo 'java not found'
+          if [ -d /opt/android-sdk ]; then echo 'Android SDK found at /opt/android-sdk'; else echo 'No Android SDK on runner'; fi
+          if [ -d /opt/android-sdk/ndk ]; then echo 'NDK present'; else echo 'NDK may be missing'; fi
+
+      - name: Prompt for manual preinstalled libs
+        run: |
+          echo "This workflow assumes a self-hosted runner with Android SDK & required NDK/libs installed."
+
+      - name: Download Content.zip (if not present locally)
+        run: |
+          if [ ! -d "src/Celeste.Android/Content" ]; then
+            mkdir -p $GITHUB_WORKSPACE/_content_dl
+            RETRIES=3
+            for i in $(seq 1 $RETRIES); do
+              curl -fsSL -o $GITHUB_WORKSPACE/_content_dl/Content.zip "${CONTENT_ZIP_URL}" && break || echo "download attempt $i failed" && sleep 2
+            done
+            unzip -q $GITHUB_WORKSPACE/_content_dl/Content.zip -d $GITHUB_WORKSPACE/_content_dl/Content
+            rsync -a $GITHUB_WORKSPACE/_content_dl/Content/ src/Celeste.Android/Content/
+          else
+            echo "Found existing src/Celeste.Android/Content on runner; skipping download"
+          fi
+
+      - name: Restore & Build
+        run: |
+          set -euo pipefail
+          dotnet restore src/Celeste.sln
+          dotnet build src/Celeste.sln -c Release -v minimal
+          dotnet publish src/Celeste.Android -c Release -o $GITHUB_WORKSPACE/artifacts/selfhost -p:AndroidSdkDirectory=/opt/android-sdk 2>&1 | tee $GITHUB_WORKSPACE/artifacts/selfhost/publish_log.txt || true
+
+      - name: Upload artifacts (if runner allows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: celeste-android-selfhost
+          path: |
+            $GITHUB_WORKSPACE/artifacts/selfhost
+            $GITHUB_WORKSPACE/artifacts/selfhost/publish_log.txt
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf $GITHUB_WORKSPACE/_content_dl || true

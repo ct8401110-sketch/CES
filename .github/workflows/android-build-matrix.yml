@@ -1,0 +1,105 @@
+
+name: Android Build — Matrix (dotnet/distro/arch)
+
+# Summary:
+# Matrix build que tenta múltiplas combinações de runtime e configuração.
+# - Executa em diferentes versões do .NET (matriz)
+# - Usa cache por combinação para acelerar builds
+# - Gera logs detalhados e artifacts separados por célula da matriz
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  CONTENT_ZIP_URL: https://github.com/ASZssz/CES/releases/download/V1/Content.zip
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dotnet: ["10.0.x", "9.0.x"]
+        configuration: [Release]
+        arch: [arm64]
+      max-parallel: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ matrix.dotnet }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+
+      - name: Cache nuget for matrix cell
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ matrix.dotnet }}-${{ hashFiles('**/*.csproj') }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download Content quickly
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/_content_dl
+          curl -fsSL -o $GITHUB_WORKSPACE/_content_dl/Content.zip "${CONTENT_ZIP_URL}"
+          unzip -q $GITHUB_WORKSPACE/_content_dl/Content.zip -d $GITHUB_WORKSPACE/_content_dl/Content
+
+      - name: Prepare Android SDK (cached)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android-sdk
+            $HOME/android-sdk
+          key: ${{ runner.os }}-android-sdk-v1
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Install Android tools (if not cached)
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk
+          if [ ! -f cmdline-tools/latest/bin/sdkmanager ]; then
+            curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -o cmdline-tools.zip
+            unzip -q cmdline-tools.zip -d cmdline-tools
+            mkdir -p cmdline-tools/latest
+            mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/ || true
+            yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
+            $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-35" "build-tools;33.0.2" "cmdline-tools;latest"
+          fi
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+
+      - name: Copy Content into project
+        run: |
+          mkdir -p src/Celeste.Android/Content
+          rsync -a $GITHUB_WORKSPACE/_content_dl/Content/ src/Celeste.Android/Content/
+
+      - name: Restore
+        run: dotnet restore src/Celeste.sln
+
+      - name: Build
+        run: |
+          dotnet build src/Celeste.sln -c ${{ matrix.configuration }}
+
+      - name: Publish APK
+        run: |
+          set -euo pipefail
+          mkdir -p $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}
+          dotnet publish src/Celeste.Android -c ${{ matrix.configuration }} -p:AndroidSdkDirectory=$HOME/android-sdk -o $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }} 2>&1 | tee $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}/publish_log.txt
+
+      - name: Upload artifact (matrix cell)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.dotnet }}-${{ matrix.arch }}
+          path: $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}
+
+      - name: Clean
+        if: always()
+        run: rm -rf $GITHUB_WORKSPACE/_content_dl || true

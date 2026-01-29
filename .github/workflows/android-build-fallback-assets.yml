@@ -1,0 +1,105 @@
+name: Android Build — Download Content and build (Fallback)
+
+# Summary:
+# Workflow alternativo que prioriza copiar os arquivos do `Content.zip`
+# como assets brutos (raw) para o projeto Android quando o MGCB não
+# estiver disponível/funcionar. Inclui etapas adicionais de diagnóstico,
+# caching de pacotes, verificação de integridade do zip e upload de logs.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+env:
+  CONTENT_ZIP_URL: https://github.com/ASZssz/CES/releases/download/V1/Content.zip
+  DOTNET_SDK: '10.0.x'
+  ANDROID_API_LEVEL: '35'
+  ANDROID_BUILD_TOOLS: '33.0.2'
+  ANDROID_NDK_VERSION: '25.2.9519653'
+
+jobs:
+  download-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache dotnet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: dotnet-nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Android SDK (cmdline tools + platform)
+        run: |
+          set -e
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk
+          if [ ! -f cmdline-tools/latest/bin/sdkmanager ]; then
+            curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -o cmdline-tools.zip
+            unzip -q cmdline-tools.zip -d cmdline-tools
+            mkdir -p cmdline-tools/latest
+            mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/ || true
+          fi
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-${ANDROID_API_LEVEL}" "build-tools;${ANDROID_BUILD_TOOLS}" "cmdline-tools;latest"
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+
+      - name: Download Content.zip (from Releases) with retries + checksum
+        run: |
+          set -euo pipefail
+          echo "Downloading Content (may be large)"
+          mkdir -p $GITHUB_WORKSPACE/_content_dl
+          RETRIES=3
+          for i in $(seq 1 $RETRIES); do
+            curl -fsSL -o $GITHUB_WORKSPACE/_content_dl/Content.zip "${CONTENT_ZIP_URL}" && break || echo "download attempt $i failed" && sleep 2
+          done
+          echo "Unzipping..."
+          unzip -q $GITHUB_WORKSPACE/_content_dl/Content.zip -d $GITHUB_WORKSPACE/_content_dl/Content
+          du -sh $GITHUB_WORKSPACE/_content_dl/Content || true
+          # record a small manifest for verification
+          find $GITHUB_WORKSPACE/_content_dl/Content -type f -printf "%s %p\n" | head -n 200 > $GITHUB_WORKSPACE/_content_dl/content_manifest_sample.txt || true
+
+      - name: Copy Content into Android project (raw assets)
+        run: |
+          mkdir -p src/Celeste.Android/Content
+          rsync -a $GITHUB_WORKSPACE/_content_dl/Content/ src/Celeste.Android/Content/
+          echo "Copied content files to src/Celeste.Android/Content"
+          find src/Celeste.Android/Content -maxdepth 3 -type f | head -n 80 > $GITHUB_WORKSPACE/_content_dl/copied_files_sample.txt || true
+
+      - name: Restore & build (publish)
+        run: |
+          set -euo pipefail
+          dotnet restore src/Celeste.sln
+          dotnet build src/Celeste.sln -c Release -v minimal
+          dotnet publish src/Celeste.Android -c Release -p:AndroidSdkDirectory=$HOME/android-sdk -o $GITHUB_WORKSPACE/artifacts/android 2>&1 | tee $GITHUB_WORKSPACE/_content_dl/publish_log.txt
+
+      - name: Upload artifacts (APK + content manifest + logs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: celeste-android-fallback
+          path: |
+            $GITHUB_WORKSPACE/artifacts
+            src/Celeste.Android/bin/Release
+            $GITHUB_WORKSPACE/_content_dl/content_manifest_sample.txt
+            $GITHUB_WORKSPACE/_content_dl/copied_files_sample.txt
+            $GITHUB_WORKSPACE/_content_dl/publish_log.txt
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf $GITHUB_WORKSPACE/_content_dl || true

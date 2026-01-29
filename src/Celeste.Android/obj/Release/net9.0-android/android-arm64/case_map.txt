@@ -1,0 +1,4 @@
+drawable/icon;drawable/Icon
+ic_launcher;ic_launcher
+mipmap/ic_launcher;mipmap/ic_launcher
+values/strings;values/Strings

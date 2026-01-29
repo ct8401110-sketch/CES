@@ -108,10 +108,8 @@
   
   <!-- Content.mgcb para compilação de assets (MGCB) -->
   <ItemGroup>
-    <MonoGameContentReference Include="Content\Content.mgcb">
-      <Link>Content\Content.mgcb</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </MonoGameContentReference>
+    <!-- MonoGame content build disabled for Android publish: we include raw Content as AndroidAsset
+         to avoid MGCB/importer issues in this environment. -->
   </ItemGroup>
   
   <!-- Native libraries (ex.: FMOD) empacotadas em jniLibs/arm64-v8a -->
@@ -123,7 +121,7 @@
   <!-- Serão incluídos no APK durante compilação      -->
   <ItemGroup>
     <AndroidAsset Include="Content\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </AndroidAsset>
   </ItemGroup>
 
@@ -143,8 +141,7 @@
     <!-- MonoGame Framework para Android -->
     <PackageReference Include="MonoGame.Framework.Android" Version="3.8.*" />
     
-    <!-- MonoGame Content Builder (para compilação de assets) -->
-    <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
+    <!-- MonoGame Content Builder removed for Android publish (use raw AndroidAsset instead) -->
   </ItemGroup>
 
 </Project>

@@ -116,65 +116,6 @@
           "lib/netcoreapp2.0/_._": {}
         }
       }
-    },
-    "net8.0/android-arm64": {
-      "MonoGame.Framework.DesktopGL/3.8.4.1": {
-        "type": "package",
-        "dependencies": {
-          "MonoGame.Library.OpenAL": "1.24.3.2",
-          "MonoGame.Library.SDL": "2.32.2.1",
-          "NVorbis": "0.10.4"
-        },
-        "compile": {
-          "lib/net8.0/MonoGame.Framework.dll": {}
-        },
-        "runtime": {
-          "lib/net8.0/MonoGame.Framework.dll": {}
-        },
-        "build": {
-          "build/MonoGame.Framework.DesktopGL.targets": {}
-        }
-      },
-      "MonoGame.Library.OpenAL/1.24.3.2": {
-        "type": "package",
-        "native": {
-          "runtimes/android-arm64/native/libopenal.so": {}
-        }
-      },
-      "MonoGame.Library.SDL/2.32.2.1": {
-        "type": "package"
-      },
-      "NVorbis/0.10.4": {
-        "type": "package",
-        "dependencies": {
-          "System.Memory": "4.5.3",
-          "System.ValueTuple": "4.5.0"
-        },
-        "compile": {
-          "lib/netstandard2.0/NVorbis.dll": {}
-        },
-        "runtime": {
-          "lib/netstandard2.0/NVorbis.dll": {}
-        }
-      },
-      "System.Memory/4.5.3": {
-        "type": "package",
-        "compile": {
-          "ref/netcoreapp2.1/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.1/_._": {}
-        }
-      },
-      "System.ValueTuple/4.5.0": {
-        "type": "package",
-        "compile": {
-          "ref/netcoreapp2.0/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.0/_._": {}
-        }
-      }
     }
   },
   "libraries": {
@@ -390,11 +331,6 @@
           }
         },
         "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json"
-      }
-    },
-    "runtimes": {
-      "android-arm64": {
-        "#import": []
       }
     }
   }

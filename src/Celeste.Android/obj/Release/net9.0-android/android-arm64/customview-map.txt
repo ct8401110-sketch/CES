@@ -1,0 +1,2 @@
+resources;obj/Release/net9.0-android/android-arm64/res/values/strings.xml
+string;obj/Release/net9.0-android/android-arm64/res/values/strings.xml

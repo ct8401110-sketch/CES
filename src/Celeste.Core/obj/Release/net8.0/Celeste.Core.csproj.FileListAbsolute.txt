@@ -10,3 +10,16 @@
 /workspaces/CELESTE/src/Celeste.Core/obj/Release/net8.0/refint/Celeste.Core.dll
 /workspaces/CELESTE/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.pdb
 /workspaces/CELESTE/src/Celeste.Core/obj/Release/net8.0/ref/Celeste.Core.dll
+/workspaces/CES/src/Celeste.Core/bin/Release/net8.0/Celeste.Core.deps.json
+/workspaces/CES/src/Celeste.Core/bin/Release/net8.0/Celeste.Core.dll
+/workspaces/CES/src/Celeste.Core/bin/Release/net8.0/Celeste.Core.pdb
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.csproj.AssemblyReference.cache
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.GeneratedMSBuildEditorConfig.editorconfig
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.AssemblyInfoInputs.cache
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.AssemblyInfo.cs
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.csproj.CoreCompileInputs.cache
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.sourcelink.json
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.dll
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/refint/Celeste.Core.dll
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/Celeste.Core.pdb
+/workspaces/CES/src/Celeste.Core/obj/Release/net8.0/ref/Celeste.Core.dll

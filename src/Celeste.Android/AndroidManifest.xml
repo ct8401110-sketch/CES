@@ -1,13 +1,90 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="Celestegame.app" android:versionCode="1" android:versionName="1.0">
-  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="35" />
-  <uses-feature android:glEsVersion="0x00020000" android:required="true" />
-  <application android:label="Celeste" android:supportsRtl="true">
-    <activity android:name=".Activity1" android:exported="true">
-      <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-      </intent-filter>
-    </activity>
-  </application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" 
+    package="Celestegame.app" 
+    android:versionCode="1" 
+    android:versionName="1.0">
+
+    <!-- Requisitos de SDK -->
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="35" />
+    
+    <!-- Requisitos de Hardware -->
+    <!-- OpenGL ES 2.0 obrigatório para MonoGame -->
+    <uses-feature 
+        android:name="android.hardware.opengles.version" 
+        android:glEsVersion="0x00020000" 
+        android:required="true" />
+    
+    <!-- Touchscreen (requerido para jogo) -->
+    <uses-feature 
+        android:name="android.hardware.touchscreen" 
+        android:required="true" />
+    
+    <!-- GamePad/Controle (opcional) -->
+    <uses-feature 
+        android:name="android.hardware.gamepad" 
+        android:required="false" />
+    
+    <!-- Vibração (opcional mas desejado) -->
+    <uses-feature 
+        android:name="android.hardware.vibrator" 
+        android:required="false" />
+    
+    <!-- Áudio (obrigatório para FMOD) -->
+    <uses-feature 
+        android:name="android.hardware.audio" 
+        android:required="true" />
+
+    <!-- Permissões - Profissional e Mínimo Necessário -->
+    <!-- 
+        IMPORTANTE: Não usar MANAGE_EXTERNAL_STORAGE por política de Google Play
+        Usar app-specific storage para logs/saves (sem permissões)
+    -->
+    
+    <!-- Permissões normais (sem diálogo de runtime) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Vibração para feedback (sem permissão em Android 5.1+) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- Áudio (sem permissão, acesso ao mixer) -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    
+    <!-- Permissões de SDK 31+ (Android 12+) -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Aplicação -->
+    <application
+        android:label="Celeste"
+        android:icon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
+        android:debuggable="false"
+        android:allowBackup="true"
+        android:requestLegacyExternalStorage="false">
+
+        <!-- Activity Principal -->
+        <activity
+            android:name=".Activity1"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|screenLayout"
+            android:resizeableActivity="false"
+            android:immersive="true">
+
+            <!-- Intent Filter para Launcher -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Configurações de Aplicação Global -->
+        <meta-data
+            android:name="com.android.app_compat.BackPressedCallback"
+            android:value="true" />
+
+    </application>
+
 </manifest>

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Celeste.Desktop")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4de38862c82270cba3cb836be9bb24ef52d343b")]
 [assembly: System.Reflection.AssemblyProductAttribute("Celeste.Desktop")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Celeste.Desktop")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

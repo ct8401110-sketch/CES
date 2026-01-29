@@ -16,3 +16,8 @@
 /workspaces/CELESTE/src/Celeste.Android/obj/Release/net9.0-android/Celeste.Android.AssemblyInfoInputs.cache
 /workspaces/CELESTE/src/Celeste.Android/obj/Release/net9.0-android/Celeste.Android.AssemblyInfo.cs
 /workspaces/CELESTE/src/Celeste.Android/obj/Release/net9.0-android/Celeste.Android.csproj.CoreCompileInputs.cache
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/mgcb.tool.restore
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/.NETCoreApp,Version=v9.0.AssemblyAttributes.cs
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/build.props
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/adb.props
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/_CompileBindingJava.FileList.txt

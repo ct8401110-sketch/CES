@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj": {}
+    "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj": {}
   },
   "projects": {
-    "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj": {
+    "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj",
+        "projectUniqueName": "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj",
         "projectName": "Celeste.Core",
-        "projectPath": "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj",
+        "projectPath": "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj",
         "packagesPath": "/home/codespace/.nuget/packages/",
-        "outputPath": "/workspaces/CELESTE/src/Celeste.Core/obj/",
+        "outputPath": "/workspaces/CES/src/Celeste.Core/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/codespace/.nuget/NuGet/NuGet.Config"

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/workspaces/CELESTE/src/Celeste.Desktop/Celeste.Desktop.csproj": {}
+    "/workspaces/CES/src/Celeste.Desktop/Celeste.Desktop.csproj": {}
   },
   "projects": {
-    "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj": {
+    "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj",
+        "projectUniqueName": "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj",
         "projectName": "Celeste.Core",
-        "projectPath": "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj",
+        "projectPath": "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj",
         "packagesPath": "/home/codespace/.nuget/packages/",
-        "outputPath": "/workspaces/CELESTE/src/Celeste.Core/obj/",
+        "outputPath": "/workspaces/CES/src/Celeste.Core/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/codespace/.nuget/NuGet/NuGet.Config"
@@ -79,14 +79,14 @@
         }
       }
     },
-    "/workspaces/CELESTE/src/Celeste.Desktop/Celeste.Desktop.csproj": {
+    "/workspaces/CES/src/Celeste.Desktop/Celeste.Desktop.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/workspaces/CELESTE/src/Celeste.Desktop/Celeste.Desktop.csproj",
+        "projectUniqueName": "/workspaces/CES/src/Celeste.Desktop/Celeste.Desktop.csproj",
         "projectName": "Celeste.Desktop",
-        "projectPath": "/workspaces/CELESTE/src/Celeste.Desktop/Celeste.Desktop.csproj",
+        "projectPath": "/workspaces/CES/src/Celeste.Desktop/Celeste.Desktop.csproj",
         "packagesPath": "/home/codespace/.nuget/packages/",
-        "outputPath": "/workspaces/CELESTE/src/Celeste.Desktop/obj/",
+        "outputPath": "/workspaces/CES/src/Celeste.Desktop/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/codespace/.nuget/NuGet/NuGet.Config"
@@ -101,8 +101,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj": {
-                "projectPath": "/workspaces/CELESTE/src/Celeste.Core/Celeste.Core.csproj"
+              "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj": {
+                "projectPath": "/workspaces/CES/src/Celeste.Core/Celeste.Core.csproj"
               }
             }
           }

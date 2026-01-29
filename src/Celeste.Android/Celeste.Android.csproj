@@ -1,147 +1,78 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- CONFIGURAÇÃO PROFISSIONAL - CELESTE ANDROID 64-BIT APK COM ASSETS EMBUTIDOS -->
-  
-  <!-- =============================================== -->
-  <!-- PROPRIEDADES PRINCIPAIS                          -->
-  <!-- =============================================== -->
+
   <PropertyGroup>
-    <!-- Framework e Versão -->
     <TargetFramework>net9.0-android</TargetFramework>
-    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+
     <OutputType>Exe</OutputType>
-    
-    <!-- Identificação da Aplicação -->
+
     <ApplicationId>Celestegame.app</ApplicationId>
     <ApplicationTitle>Celeste</ApplicationTitle>
-    <ApplicationVersion>1</ApplicationVersion>
-    
-    <!-- Versão do App para Google Play -->
+
     <AndroidVersionCode>1</AndroidVersionCode>
     <AndroidVersionName>1.0</AndroidVersionName>
-    <TargetAndroidVersion>33</TargetAndroidVersion>
-    
-    <!-- Arquitetura: 64-bit ARM only (obrigatório em 2024+) -->
+
+    <AndroidMinSdkVersion>21</AndroidMinSdkVersion>
+    <AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
+
     <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
-    <!-- Android ABIs (garante empacotamento das libs nativas arm64-v8a) -->
-    <AndroidSupportedAbis>arm64-v8a</AndroidSupportedAbis>
-    
-    <!-- =============================================== -->
-    <!-- OTIMIZAÇÕES DE PERFORMANCE                       -->
-    <!-- =============================================== -->
-    
-    <!-- Trimming e LinkMode (remove IL não utilizado) -->
-    <TrimMode>link</TrimMode>
-    <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    
-    <!-- AOT Compilation (pré-compila JIT) -->
-    <RunAOTCompilation>false</RunAOTCompilation>
-    
-    <!-- Garbage Collection (GC agressivo para performance) -->
-    <InvariantGlobalization>false</InvariantGlobalization>
-    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
-    
-    <!-- Profiling e Runtime -->
-    <AndroidEnableProfiling>false</AndroidEnableProfiling>
-    <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
-    <DebugType>embedded</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-    
-    <!-- =============================================== -->
-    <!-- ASSETS E CONTENT                                 -->
-    <!-- =============================================== -->
-    
-    <!-- Assets brutos (PNG, XML, etc - não compilados) -->
+
+    <AcceptAndroidSDKLicenses>true</AcceptAndroidSDKLicenses>
+
     <AndroidUseAapt2>true</AndroidUseAapt2>
-    
-    <!-- Compress Type para APK (o maior, melhor compressão) -->
-    <AndroidPackageFormat>aab</AndroidPackageFormat>
-    
-    <!-- =============================================== -->
-    <!-- COMPILAÇÃO E WARNINGS                           -->
-    <!-- =============================================== -->
-    
-    <!-- Suppressões de Warnings (compatibilidade) -->
-    <NoWarn>SYSLIB0011;CS0029;CS1503;CS1501;CS0117;CS1955;CS1061;CS0266;CS1739;CS0019;CS0246;CS0121;CS0105;CS0103;CS1656;CS0023;BL0006</NoWarn>
-    
-    <!-- Tratamento de Erros -->
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningLevel>4</WarningLevel>
-    
-    <!-- =============================================== -->
-    <!-- CONFIGURAÇÕES DE RELEASE/DEBUG                   -->
-    <!-- =============================================== -->
+
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
+
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <NoWarn>SYSLIB0011;CS0029;CS1503;CS1501;CS0117;CS1955;CS1061;CS0266;CS1739;CS0019;CS0246;CS0121;CS0105;CS0103;CS1656;CS0023;BL0006</NoWarn>
   </PropertyGroup>
 
-  <!-- =============================================== -->
-  <!-- CONFIGURAÇÃO DEBUG                              -->
-  <!-- =============================================== -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>embedded</DebugType>
     <Optimize>false</Optimize>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
 
-  <!-- =============================================== -->
-  <!-- CONFIGURAÇÃO RELEASE                            -->
-  <!-- =============================================== -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugSymbols>false</DebugSymbols>
-    <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
     <DefineConstants>RELEASE;TRACE</DefineConstants>
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- Se você quiser AAB em release, descomente:
+    <AndroidPackageFormat>aab</AndroidPackageFormat>
+    -->
   </PropertyGroup>
 
-  <!-- =============================================== -->
-  <!-- REFERÊNCIAS DE PROJETOS                         -->
-  <!-- =============================================== -->
   <ItemGroup>
     <ProjectReference Include="..\Celeste.Core\Celeste.Core.csproj" />
   </ItemGroup>
 
-  <!-- =============================================== -->
-  <!-- ASSETS E CONTENT MANAGEMENT                     -->
-  <!-- =============================================== -->
-  
-  <!-- Content.mgcb para compilação de assets (MGCB) -->
-  <ItemGroup>
-    <!-- MonoGame content build disabled for Android publish: we include raw Content as AndroidAsset
-         to avoid MGCB/importer issues in this environment. -->
-  </ItemGroup>
-  
-  <!-- Native libraries (ex.: FMOD) empacotadas em jniLibs/arm64-v8a -->
   <ItemGroup>
     <AndroidNativeLibrary Include="jniLibs\arm64-v8a\*.so" />
   </ItemGroup>
 
-  <!-- Assets Brutos: Todos os arquivos em Content/ -->
-  <!-- Serão incluídos no APK durante compilação      -->
   <ItemGroup>
     <AndroidAsset Include="Content\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </AndroidAsset>
   </ItemGroup>
 
-  <!-- Ícone do App: Referência aos mipmaps gerados -->
   <ItemGroup>
-    <AndroidResource Include="Resources\mipmap-mdpi\ic_launcher.png" Link="ic_launcher.png" />
-    <AndroidResource Include="Resources\mipmap-hdpi\ic_launcher.png" Link="ic_launcher.png" />
-    <AndroidResource Include="Resources\mipmap-xhdpi\ic_launcher.png" Link="ic_launcher.png" />
-    <AndroidResource Include="Resources\mipmap-xxhdpi\ic_launcher.png" Link="ic_launcher.png" />
-    <AndroidResource Include="Resources\mipmap-xxxhdpi\ic_launcher.png" Link="ic_launcher.png" />
+    <AndroidResource Include="Resources\mipmap-mdpi\ic_launcher.png" />
+    <AndroidResource Include="Resources\mipmap-hdpi\ic_launcher.png" />
+    <AndroidResource Include="Resources\mipmap-xhdpi\ic_launcher.png" />
+    <AndroidResource Include="Resources\mipmap-xxhdpi\ic_launcher.png" />
+    <AndroidResource Include="Resources\mipmap-xxxhdpi\ic_launcher.png" />
   </ItemGroup>
 
-  <!-- =============================================== -->
-  <!-- DEPENDÊNCIAS NUGET                              -->
-  <!-- =============================================== -->
   <ItemGroup>
-    <!-- MonoGame Framework para Android -->
     <PackageReference Include="MonoGame.Framework.Android" Version="3.8.*" />
-    
-    <!-- MonoGame Content Builder removed for Android publish (use raw AndroidAsset instead) -->
   </ItemGroup>
 
 </Project>

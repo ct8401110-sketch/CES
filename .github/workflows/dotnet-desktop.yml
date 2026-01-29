@@ -1,4 +1,4 @@
-name: Bootstrap Dev Environment (Android + .NET + MonoGame)
+name: Bootstrap Android + .NET + MonoGame (Avançado Completo)
 
 on:
   push:
@@ -7,25 +7,38 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+concurrency:
+  group: bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   ANDROID_API: "34"
   BUILD_TOOLS: "34.0.0"
   NDK_VERSION: "26.3.11579264"
   CMAKE_VERSION: "3.22.1"
   DOTNET_VERSION: "8.0.x"
+  NODE_VERSION: "20"
   ANDROID_SDK_DIR: ${{ github.workspace }}/.android-sdk
   CMDLINE_TOOLS_URL: https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+
+  DEBIAN_FRONTEND: noninteractive
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  NUGET_XMLDOC_MODE: skip
 
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare directories
+      - name: Init logs + dirs
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -38,13 +51,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_DIR }}
-          key: android-sdk-${{ runner.os }}-${{ env.ANDROID_API }}-${{ env.BUILD_TOOLS }}-${{ env.NDK_VERSION }}-${{ env.CMAKE_VERSION }}-v2
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v3
 
-      - name: Cache NuGet packages
+      - name: Cache NuGet
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.sln', '**/global.json') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj','**/*.sln','**/global.json','NuGet.config') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -56,7 +69,7 @@ jobs:
           restore-keys: |
             dotnet-tools-${{ runner.os }}-
 
-      - name: Install base packages (apt)
+      - name: System packages (apt)
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -73,28 +86,46 @@ jobs:
             libssl-dev zlib1g-dev \
             ca-certificates gnupg apt-transport-https
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
       - name: Setup Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
+          distribution: temurin
           java-version: "17"
+
+      - name: Detect Node lockfile (evita erro do cache)
+        id: node_lock
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ] || [ -f yarn.lock ]; then
+            echo "has_lock=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_lock=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js 20 (com cache quando existir lockfile)
+        if: steps.node_lock.outputs.has_lock == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Setup Node.js 20 (sem cache quando não existir lockfile)
+        if: steps.node_lock.outputs.has_lock != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup .NET SDK 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install .NET Android workload
+      - name: .NET Android Workload
         shell: bash
         run: |
           set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/dotnet-android-workload.log"
+          LOG="${GITHUB_WORKSPACE}/logs/dotnet-workload-android.log"
           exec > >(tee -a "$LOG") 2>&1
 
           dotnet --info
@@ -104,7 +135,9 @@ jobs:
             dotnet workload install android
           fi
 
-      - name: Install Android Command Line Tools + SDK packages
+          dotnet workload list | sed -n '1,200p' || true
+
+      - name: Android SDK (cmdline-tools + packages)
         shell: bash
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_DIR }}
@@ -115,20 +148,17 @@ jobs:
           exec > >(tee -a "$LOG") 2>&1
 
           SDK="${ANDROID_SDK_DIR}"
-          mkdir -p "${SDK}/cmdline-tools"
-          mkdir -p "${SDK}/platform-tools"
+          mkdir -p "${SDK}/cmdline-tools" "${SDK}/platform-tools"
 
           if [ ! -d "${SDK}/cmdline-tools/latest" ]; then
             TMP_ZIP="/tmp/cmdline-tools.zip"
             TMP_DIR="/tmp/cmdline-extract"
-
             curl -fsSL "${CMDLINE_TOOLS_URL}" -o "${TMP_ZIP}"
             rm -rf "${TMP_DIR}"
             mkdir -p "${TMP_DIR}"
             unzip -q "${TMP_ZIP}" -d "${TMP_DIR}"
 
             mkdir -p "${SDK}/cmdline-tools/latest"
-
             if [ -d "${TMP_DIR}/cmdline-tools" ]; then
               cp -R "${TMP_DIR}/cmdline-tools/"* "${SDK}/cmdline-tools/latest/"
             elif [ -d "${TMP_DIR}/tools" ]; then
@@ -140,7 +170,10 @@ jobs:
             rm -rf "${TMP_DIR}" "${TMP_ZIP}"
           fi
 
-          export PATH="${SDK}/cmdline-tools/latest/bin:${SDK}/platform-tools:${PATH}"
+          echo "${SDK}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
+          echo "${SDK}/platform-tools" >> "${GITHUB_PATH}"
+          echo "ANDROID_HOME=${SDK}" >> "${GITHUB_ENV}"
+          echo "ANDROID_SDK_ROOT=${SDK}" >> "${GITHUB_ENV}"
 
           sdkmanager --version
           yes | sdkmanager --licenses >/dev/null
@@ -154,7 +187,10 @@ jobs:
 
           adb version || true
 
-      - name: Install Mono
+          echo "SDK_DIR=${SDK}" >> "${GITHUB_OUTPUT}"
+          echo "SDK_PACKAGES_OK=1" >> "${GITHUB_OUTPUT}"
+
+      - name: Mono (mono-complete)
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -165,79 +201,74 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends mono-complete
           mono --version | head -n 1 || true
 
-      - name: Install MonoGame templates + MGCB Editor (dotnet tool)
+      - name: MonoGame templates + MGCB editor
         shell: bash
         run: |
           set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/monogame.log"
+          LOG="${GITHUB_WORKSPACE}/logs/monogame-mgcb.log"
           exec > >(tee -a "$LOG") 2>&1
 
           dotnet new install MonoGame.Templates.CSharp || true
           dotnet tool install --global dotnet-mgcb-editor || true
 
           echo "${HOME}/.dotnet/tools" >> "${GITHUB_PATH}"
+
+          dotnet --list-sdks || true
           dotnet-mgcb-editor --help >/dev/null 2>&1 || true
 
-      - name: Docker status (runner usually already has Docker)
+      - name: Smoke checks (tooling)
         shell: bash
         run: |
           set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/docker.log"
+          LOG="${GITHUB_WORKSPACE}/logs/smoke-checks.log"
           exec > >(tee -a "$LOG") 2>&1
 
-          docker --version || true
-          docker info || true
+          echo "JAVA_HOME=${JAVA_HOME:-unset}"
+          java -version 2>&1 | head -n 2 || true
+          echo "NODE=$(node -v 2>/dev/null || true)"
+          echo "NPM=$(npm -v 2>/dev/null || true)"
+          echo "DOTNET=$(dotnet --version 2>/dev/null || true)"
+          echo "SDKMANAGER=$(command -v sdkmanager 2>/dev/null || true)"
+          echo "ADB=$(command -v adb 2>/dev/null || true)"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
+          ls -la "${ANDROID_SDK_ROOT:-/dev/null}" || true
 
-      - name: Environment report
+      - name: Build summary (GITHUB_STEP_SUMMARY)
         shell: bash
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_DIR }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_DIR }}
         run: |
           set -Eeuo pipefail
-          OUT="${GITHUB_WORKSPACE}/logs/report.txt"
+
+          OS_NAME="$(grep PRETTY_NAME /etc/os-release | cut -d= -f2- | tr -d '"')"
+          KERNEL="$(uname -r)"
+          JAVA_LINE="$(java -version 2>&1 | head -n 1 || true)"
+          NODE_V="$(node -v 2>/dev/null || echo 'n/a')"
+          NPM_V="$(npm -v 2>/dev/null || echo 'n/a')"
+          DOTNET_V="$(dotnet --version 2>/dev/null || echo 'n/a')"
+          MONO_V="$(mono --version 2>/dev/null | head -n 1 || echo 'n/a')"
+          ADB_V="$("${ANDROID_SDK_ROOT}/platform-tools/adb" version 2>/dev/null | head -n 1 || echo 'n/a')"
 
           {
-            echo "RELATORIO DE AMBIENTE"
-            echo "Data: $(date -u)"
+            echo "## Summary do Bootstrap"
             echo ""
-            echo "Sistema:"
-            grep PRETTY_NAME /etc/os-release || true
-            echo "Kernel: $(uname -r)"
+            echo "| Item | Valor |"
+            echo "|---|---|"
+            echo "| Data (UTC) | $(date -u) |"
+            echo "| OS | ${OS_NAME} |"
+            echo "| Kernel | ${KERNEL} |"
+            echo "| Java | ${JAVA_LINE} |"
+            echo "| Node | ${NODE_V} |"
+            echo "| NPM | ${NPM_V} |"
+            echo "| .NET SDK | ${DOTNET_V} |"
+            echo "| Mono | ${MONO_V} |"
+            echo "| Android API | ${ANDROID_API} |"
+            echo "| Build-Tools | ${BUILD_TOOLS} |"
+            echo "| NDK | ${NDK_VERSION} |"
+            echo "| CMake | ${CMAKE_VERSION} |"
+            echo "| ANDROID_SDK_ROOT | ${ANDROID_SDK_ROOT:-unset} |"
+            echo "| ADB | ${ADB_V} |"
             echo ""
-            echo "Java:"
-            java -version 2>&1 | head -n 2 || true
-            echo ""
-            echo "Node:"
-            node -v || true
-            npm -v || true
-            echo ""
-            echo ".NET:"
-            dotnet --version || true
-            dotnet --info | sed -n '1,25p' || true
-            echo ""
-            echo "Mono:"
-            mono --version 2>/dev/null | head -n 1 || true
-            echo ""
-            echo "Android:"
-            echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
-            "${ANDROID_SDK_ROOT}/platform-tools/adb" version 2>/dev/null | head -n 1 || true
-            echo "API=${ANDROID_API}"
-            echo "Build-Tools=${BUILD_TOOLS}"
-            echo "NDK=${NDK_VERSION}"
-            echo "CMake=${CMAKE_VERSION}"
-            echo ""
-            echo "Docker:"
-            docker --version 2>/dev/null || true
-            docker compose version 2>/dev/null || true
-          } | tee "$OUT"
-
-          {
-            echo "## Relatorio do Ambiente"
-            echo ""
-            echo '```'
-            cat "$OUT"
-            echo '```'
+            echo "### Logs"
+            echo "- Artefato: bootstrap-logs (pasta logs/)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload logs artifact

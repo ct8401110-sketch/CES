@@ -24,11 +24,13 @@ permissions:
   contents: read
 
 env:
+  DOTNET_VERSION: "8.0.x"
+
   ANDROID_API: "34"
+  ANDROID_API_EXTRA: "35"
   BUILD_TOOLS: "34.0.0"
   NDK_VERSION: "26.3.11579264"
   CMAKE_VERSION: "3.22.1"
-  DOTNET_VERSION: "8.0.x"
 
   ANDROID_SDK_DIR: ${{ github.workspace }}/.android-sdk
   CMDLINE_TOOLS_URL: https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
@@ -66,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_DIR }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v6
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-api${{ env.ANDROID_API_EXTRA }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v7
 
       - name: Cache NuGet
         uses: actions/cache@v4
@@ -75,14 +77,6 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj','**/*.sln','**/global.json','NuGet.config') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-
-      - name: Cache dotnet tools
-        uses: actions/cache@v4
-        with:
-          path: ~/.dotnet/tools
-          key: dotnet-tools-${{ runner.os }}-${{ hashFiles('**/*.config/dotnet-tools.json') }}
-          restore-keys: |
-            dotnet-tools-${{ runner.os }}-
 
       - name: System packages (apt)
         shell: bash
@@ -93,7 +87,7 @@ jobs:
 
           sudo apt-get update -y -qq
           sudo apt-get install -y -qq --no-install-recommends \
-            git curl wget unzip zip tar xz-utils ca-certificates gnupg apt-transport-https \
+            git curl wget unzip zip tar xz-utils ca-certificates gnupg \
             build-essential cmake ninja-build pkg-config \
             clang llvm lld \
             python3 python3-pip \
@@ -123,12 +117,9 @@ jobs:
 
           dotnet --info
           dotnet workload list || true
-
           if ! dotnet workload list | grep -qi "android"; then
             dotnet workload install android
           fi
-
-          dotnet workload list | sed -n '1,220p' || true
 
       - name: Android SDK (cmdline-tools + packages)
         shell: bash
@@ -182,6 +173,7 @@ jobs:
           yes | "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-${ANDROID_API}" \
+            "platforms;android-${ANDROID_API_EXTRA}" \
             "build-tools;${BUILD_TOOLS}" \
             "ndk;${NDK_VERSION}" \
             "cmake;${CMAKE_VERSION}" >/dev/null
@@ -189,6 +181,7 @@ jobs:
           set -o pipefail
           [ "$inst_rc" -eq 0 ] || (echo "Falha install SDK rc=$inst_rc" && exit "$inst_rc")
 
+          ls -la "${SDK}/platforms" || true
           adb version || true
 
           echo "${SDK}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
@@ -206,6 +199,15 @@ jobs:
           test -f "${PROJECT_FILE}" || (echo "PROJECT_FILE não existe: ${PROJECT_FILE}" && ls -la && exit 1)
           dotnet restore "${PROJECT_FILE}"
 
+      - name: Install Android dependencies (target do .NET) [opcional/robusto]
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          LOG="${GITHUB_WORKSPACE}/logs/install-android-deps.log"
+          exec > >(tee -a "$LOG") 2>&1
+
+          dotnet build "${PROJECT_FILE}" -t:InstallAndroidDependencies -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" || true
+
       - name: Content.zip (opcional)
         if: ${{ env.CONTENT_ZIP_URL != '' }}
         shell: bash
@@ -218,39 +220,7 @@ jobs:
           curl -fL "${CONTENT_ZIP_URL}" -o /tmp/Content.zip
           unzip -q /tmp/Content.zip -d "${CONTENT_DEST_DIR}"
           rm -f /tmp/Content.zip
-          echo "Conteúdo extraído em: ${CONTENT_DEST_DIR}"
           du -sh "${CONTENT_DEST_DIR}" || true
-
-      - name: Install MGCB CLI
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/mgcb-tools.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          dotnet tool install --global dotnet-mgcb || true
-          dotnet tool install --global dotnet-mgcb-editor || true
-          echo "${HOME}/.dotnet/tools" >> "${GITHUB_PATH}"
-
-          dotnet-mgcb --help >/dev/null 2>&1 || true
-
-      - name: Run MGCB (se existir .mgcb)
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/mgcb-run.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          mapfile -t MGCBS < <(find . -type f -name "*.mgcb" | sort || true)
-          if [ "${#MGCBS[@]}" -eq 0 ]; then
-            echo "Nenhum .mgcb encontrado. Pulando MGCB."
-            exit 0
-          fi
-
-          for f in "${MGCBS[@]}"; do
-            echo "MGCB: $f"
-            dotnet-mgcb "$f" /quiet || dotnet-mgcb "$f" || true
-          done
 
       - name: Build + Publish APK
         shell: bash
@@ -272,7 +242,6 @@ jobs:
 
           echo "CONFIG=${CONFIG}"
           dotnet build "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}"
-
           dotnet publish "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" -o "${GITHUB_WORKSPACE}/publish"
 
       - name: Collect APK/AAB + hashes
@@ -284,38 +253,33 @@ jobs:
 
           mkdir -p "${GITHUB_WORKSPACE}/artifacts"
 
-          find "${GITHUB_WORKSPACE}" -type f \( -name "*.apk" -o -name "*.aab" \) -print | tee "${GITHUB_WORKSPACE}/logs/found-bundles.txt" || true
-
           mapfile -t BUNDLES < <(find "${GITHUB_WORKSPACE}" -type f \( -name "*.apk" -o -name "*.aab" \) | sort || true)
           if [ "${#BUNDLES[@]}" -eq 0 ]; then
             echo "Nenhum APK/AAB encontrado."
-            echo "Dica: verifique o path do csproj e se o publish gerou saída Android."
+            echo "Listando pasta publish:"
+            find "${GITHUB_WORKSPACE}/publish" -maxdepth 6 -type f | head -n 200 || true
             exit 1
           fi
 
           for b in "${BUNDLES[@]}"; do
-            base="$(basename "$b")"
-            cp -f "$b" "${GITHUB_WORKSPACE}/artifacts/${base}"
+            cp -f "$b" "${GITHUB_WORKSPACE}/artifacts/$(basename "$b")"
           done
 
           (cd "${GITHUB_WORKSPACE}/artifacts" && sha256sum * > SHA256SUMS.txt)
           ls -la "${GITHUB_WORKSPACE}/artifacts"
-          du -sh "${GITHUB_WORKSPACE}/artifacts" || true
 
       - name: Step Summary
         shell: bash
         run: |
           set -Eeuo pipefail
-
           OS_NAME="$(grep PRETTY_NAME /etc/os-release | cut -d= -f2- | tr -d '"')"
           KERNEL="$(uname -r)"
           JAVA_LINE="$(java -version 2>&1 | head -n 1 || true)"
           DOTNET_V="$(dotnet --version 2>/dev/null || echo 'n/a')"
           MONO_V="$(mono --version 2>/dev/null | head -n 1 || echo 'n/a')"
           ADB_V="$(adb version 2>/dev/null | head -n 1 || echo 'n/a')"
-
-          APK_LIST="$(ls -1 artifacts/*.apk 2>/dev/null | wc -l | tr -d ' ')"
-          AAB_LIST="$(ls -1 artifacts/*.aab 2>/dev/null | wc -l | tr -d ' ')"
+          APK_COUNT="$(ls -1 artifacts/*.apk 2>/dev/null | wc -l | tr -d ' ')"
+          AAB_COUNT="$(ls -1 artifacts/*.aab 2>/dev/null | wc -l | tr -d ' ')"
 
           {
             echo "## Build APK Android"
@@ -328,24 +292,20 @@ jobs:
             echo "| Java | ${JAVA_LINE} |"
             echo "| .NET SDK | ${DOTNET_V} |"
             echo "| Mono | ${MONO_V} |"
-            echo "| Android API | ${ANDROID_API} |"
+            echo "| Android API instalada | ${ANDROID_API} + ${ANDROID_API_EXTRA} |"
             echo "| Build-Tools | ${BUILD_TOOLS} |"
             echo "| NDK | ${NDK_VERSION} |"
             echo "| CMake | ${CMAKE_VERSION} |"
             echo "| ANDROID_SDK_ROOT | ${ANDROID_SDK_ROOT:-unset} |"
             echo "| ADB | ${ADB_V} |"
             echo "| Projeto | ${PROJECT_FILE} |"
-            echo "| APKs | ${APK_LIST} |"
-            echo "| AABs | ${AAB_LIST} |"
+            echo "| APKs | ${APK_COUNT} |"
+            echo "| AABs | ${AAB_COUNT} |"
             echo ""
             echo "### SHA256"
             echo "\`\`\`"
             cat artifacts/SHA256SUMS.txt 2>/dev/null || true
             echo "\`\`\`"
-            echo ""
-            echo "### Logs"
-            echo "- artifact: build-logs"
-            echo "- artifact: build-output"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload build output

@@ -1,4 +1,4 @@
-name: 🎮 Build Celeste Android (MonoGame + .NET) — Final Extenso
+name: Build Celeste Android (MonoGame + .NET) — Final Verbose + Binlog
 
 on:
   push:
@@ -12,21 +12,21 @@ on:
         required: false
         default: "Release"
       verbose:
-        description: "Logs mais detalhados (true/false)"
+        description: "true = diag | false = normal"
         required: false
         default: "false"
-      package_format:
-        description: "apk ou aab (se vazio, usa o csproj)"
-        required: false
-        default: ""
       rid:
-        description: "RuntimeIdentifier(s). Ex: android-arm64 ou android-arm64;android-x64"
+        description: "RuntimeIdentifiers (ex: android-arm64)"
         required: false
         default: "android-arm64"
-      content_zip_url:
-        description: "URL opcional do Content.zip (se vazio, não baixa)"
+      package_format:
+        description: "apk ou aab (se vazio usa csproj)"
         required: false
         default: ""
+      content_zip_url:
+        description: "URL do Content.zip (se vazio, nao baixa)"
+        required: false
+        default: "https://github.com/ASZssz/CES/releases/download/V1/Content.zip"
 
 concurrency:
   group: celeste-android-${{ github.ref }}
@@ -36,11 +36,8 @@ permissions:
   contents: read
 
 env:
-  # IMPORTANTE:
-  # Seu csproj está em net9.0-android, então o runner precisa do .NET 9.
   DOTNET_VERSION: "9.0.x"
 
-  # Android SDK/NDK/CMake
   ANDROID_API: "34"
   ANDROID_API_EXTRA: "35"
   BUILD_TOOLS: "34.0.0"
@@ -50,30 +47,26 @@ env:
   ANDROID_SDK_DIR: ${{ github.workspace }}/.android-sdk
   CMDLINE_TOOLS_URL: https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
 
-  # Qualidade e telemetria
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   NUGET_XMLDOC_MODE: skip
   DEBIAN_FRONTEND: noninteractive
+  MSBUILDDISABLENODEREUSE: "1"
 
-  # Projeto
   PROJECT_FILE: src/Celeste.Android/Celeste.Android.csproj
   CONFIGURATION_DEFAULT: Release
-
-  # Content (padrão: não baixa)
   CONTENT_DEST_DIR: src/Celeste.Android/Content
 
 jobs:
   build:
-    name: Build Android
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Init workspace (logs/artifacts)
+      - name: Init dirs
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -81,34 +74,14 @@ jobs:
           mkdir -p "${ANDROID_SDK_DIR}"
           mkdir -p "${HOME}/.android"
           touch "${HOME}/.android/repositories.cfg"
-          echo "WORKSPACE=${GITHUB_WORKSPACE}"
-          echo "PROJECT_FILE=${PROJECT_FILE}"
-          ls -la
-
-      - name: Validate project path
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/validate-project.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          if [ ! -f "${PROJECT_FILE}" ]; then
-            echo "ERRO: PROJECT_FILE não existe: ${PROJECT_FILE}"
-            echo "Listando src/:"
-            ls -la src || true
-            echo "Buscando csproj:"
-            find . -maxdepth 4 -name "*.csproj" -print || true
-            exit 1
-          fi
-
-          echo "OK: csproj encontrado."
-          sed -n '1,80p' "${PROJECT_FILE}" || true
+          echo "Workspace: ${GITHUB_WORKSPACE}"
+          echo "Project:   ${PROJECT_FILE}"
 
       - name: Cache Android SDK
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_DIR }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-api${{ env.ANDROID_API_EXTRA }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v9
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-api${{ env.ANDROID_API_EXTRA }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v10
 
       - name: Cache NuGet
         uses: actions/cache@v4
@@ -118,15 +91,7 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Cache dotnet tools
-        uses: actions/cache@v4
-        with:
-          path: ~/.dotnet/tools
-          key: dotnet-tools-${{ runner.os }}-${{ hashFiles('**/*.config/dotnet-tools.json') }}
-          restore-keys: |
-            dotnet-tools-${{ runner.os }}-
-
-      - name: System packages (apt) + Mono
+      - name: System packages + Mono
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -143,7 +108,6 @@ jobs:
             libssl-dev zlib1g-dev \
             mono-complete
 
-          echo "Mono:"
           mono --version | head -n 2 || true
 
       - name: Setup Java 17
@@ -152,31 +116,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup .NET SDK
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Print toolchain versions
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/versions.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          echo "OS:"
-          cat /etc/os-release | sed -n '1,20p' || true
-          echo ""
-          echo "Kernel: $(uname -r)"
-          echo ""
-          echo "Java:"
-          java -version 2>&1 | head -n 3 || true
-          echo ""
-          echo "dotnet:"
-          dotnet --info || true
-          echo ""
-          echo "mono:"
-          mono --version | head -n 2 || true
 
       - name: Install .NET Android workload
         shell: bash
@@ -185,13 +128,14 @@ jobs:
           LOG="${GITHUB_WORKSPACE}/logs/dotnet-workload.log"
           exec > >(tee -a "$LOG") 2>&1
 
+          dotnet --info
           dotnet workload list || true
           if ! dotnet workload list | grep -qi "android"; then
             dotnet workload install android
           fi
           dotnet workload list | sed -n '1,260p' || true
 
-      - name: Android SDK (cmdline-tools + platforms/build-tools/ndk/cmake)
+      - name: Android SDK (cmdline-tools + packages)
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -200,16 +144,12 @@ jobs:
 
           SDK="${ANDROID_SDK_DIR}"
           mkdir -p "${SDK}/cmdline-tools" "${SDK}/platform-tools"
-          mkdir -p "${HOME}/.android"
-          touch "${HOME}/.android/repositories.cfg"
 
           if [ ! -d "${SDK}/cmdline-tools/latest" ]; then
             TMP_ZIP="/tmp/cmdline-tools.zip"
             TMP_DIR="/tmp/cmdline-extract"
 
-            echo "Baixando cmdline-tools..."
             curl -fsSL "${CMDLINE_TOOLS_URL}" -o "${TMP_ZIP}"
-
             rm -rf "${TMP_DIR}"
             mkdir -p "${TMP_DIR}"
             unzip -q "${TMP_ZIP}" -d "${TMP_DIR}"
@@ -233,22 +173,16 @@ jobs:
 
           SDKMANAGER="${SDK}/cmdline-tools/latest/bin/sdkmanager"
           [ -x "$SDKMANAGER" ] || chmod +x "$SDKMANAGER" || true
-          [ -x "$SDKMANAGER" ] || (echo "sdkmanager não executável" && ls -la "${SDK}/cmdline-tools/latest/bin" && exit 1)
+          [ -x "$SDKMANAGER" ] || (ls -la "${SDK}/cmdline-tools/latest/bin" && exit 1)
 
-          echo "sdkmanager version:"
           "$SDKMANAGER" --version
 
-          echo "Aceitando licenças (ignorando broken pipe do yes)..."
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null
           lic_rc="${PIPESTATUS[1]}"
           set -o pipefail
-          if [ "$lic_rc" -ne 0 ]; then
-            echo "Falha licenças rc=$lic_rc"
-            exit "$lic_rc"
-          fi
+          [ "$lic_rc" -eq 0 ] || (echo "Falha licenças rc=$lic_rc" && exit "$lic_rc")
 
-          echo "Instalando pacotes Android..."
           set +o pipefail
           yes | "$SDKMANAGER" --install \
             "platform-tools" \
@@ -259,25 +193,17 @@ jobs:
             "cmake;${CMAKE_VERSION}" >/dev/null
           inst_rc="${PIPESTATUS[1]}"
           set -o pipefail
-          if [ "$inst_rc" -ne 0 ]; then
-            echo "Falha install SDK rc=$inst_rc"
-            exit "$inst_rc"
-          fi
+          [ "$inst_rc" -eq 0 ] || (echo "Falha install SDK rc=$inst_rc" && exit "$inst_rc")
 
-          echo "Verificando android.jar:"
-          ls -la "${SDK}/platforms/android-${ANDROID_API}/android.jar" || true
-          ls -la "${SDK}/platforms/android-${ANDROID_API_EXTRA}/android.jar" || true
-
-          echo "Persistindo PATH/ENV para os próximos steps..."
           echo "${SDK}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
           echo "${SDK}/platform-tools" >> "${GITHUB_PATH}"
           echo "ANDROID_HOME=${SDK}" >> "${GITHUB_ENV}"
           echo "ANDROID_SDK_ROOT=${SDK}" >> "${GITHUB_ENV}"
 
-          echo "ADB:"
           adb version || true
+          ls -la "${SDK}/platforms" || true
 
-      - name: Optional Content.zip download (workflow_dispatch)
+      - name: Download Content.zip (se fornecido)
         if: ${{ inputs.content_zip_url != '' }}
         shell: bash
         run: |
@@ -285,35 +211,30 @@ jobs:
           LOG="${GITHUB_WORKSPACE}/logs/content.log"
           exec > >(tee -a "$LOG") 2>&1
 
-          echo "Baixando Content.zip..."
+          echo "CONTENT_ZIP_URL=${{ inputs.content_zip_url }}"
           mkdir -p "${CONTENT_DEST_DIR}"
+          rm -rf "${CONTENT_DEST_DIR:?}/"* || true
+
           curl -fL "${{ inputs.content_zip_url }}" -o /tmp/Content.zip
+
+          echo "Conteúdo do zip (top 80):"
+          unzip -l /tmp/Content.zip | head -n 80 || true
+
+          echo "Extraindo..."
           unzip -q /tmp/Content.zip -d "${CONTENT_DEST_DIR}"
           rm -f /tmp/Content.zip
 
-          echo "Tamanho do Content:"
+          echo "Tamanho Content:"
           du -sh "${CONTENT_DEST_DIR}" || true
+
           echo "Top 40 maiores arquivos:"
           (cd "${CONTENT_DEST_DIR}" && find . -type f -printf "%s %p\n" | sort -nr | head -n 40) || true
 
-      - name: Restore (NuGet) — com SDK dir e licenças
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/restore.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          dotnet restore "${PROJECT_FILE}" \
-            -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" \
-            -p:AcceptAndroidSDKLicenses=true
-
-      - name: Compute build parameters (CONFIG/VERBOSE/RID/PACKAGE_FORMAT)
+      - name: Compute build params
         id: params
         shell: bash
         run: |
           set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/params.log"
-          exec > >(tee -a "$LOG") 2>&1
 
           CONFIG="${{ inputs.configuration }}"
           if [ -z "${CONFIG}" ]; then
@@ -321,7 +242,7 @@ jobs:
           fi
 
           VERBOSE="${{ inputs.verbose }}"
-          VFLAG="minimal"
+          VFLAG="normal"
           if [ "${VERBOSE}" = "true" ]; then
             VFLAG="diag"
           fi
@@ -341,22 +262,26 @@ jobs:
           echo "RID=${RID}" >> "$GITHUB_OUTPUT"
           echo "PKG=${PKG}" >> "$GITHUB_OUTPUT"
 
-          echo "CONFIG=${CONFIG}"
-          echo "VFLAG=${VFLAG}"
-          echo "RID=${RID}"
-          echo "PKG=${PKG:-<usa csproj>}"
-
-      - name: Dump csproj Android-related props (rápido)
+      - name: Restore (com heartbeat + log)
         shell: bash
         run: |
           set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/csproj-scan.log"
+          LOG="${GITHUB_WORKSPACE}/logs/restore.log"
           exec > >(tee -a "$LOG") 2>&1
 
-          echo "Procurando propriedades importantes no csproj:"
-          grep -nE "TargetFramework|Android(TargetSdkVersion|MinSdkVersion|PackageFormat|SupportedAbis)|RuntimeIdentifiers|AcceptAndroidSDKLicenses" -n "${PROJECT_FILE}" || true
+          ( while true; do echo "[heartbeat] $(date -u) restore rodando..."; sleep 60; done ) &
+          HB_PID=$!
+          trap 'kill $HB_PID >/dev/null 2>&1 || true' EXIT
 
-      - name: Build (Android)
+          dotnet restore "${PROJECT_FILE}" \
+            -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" \
+            -p:AcceptAndroidSDKLicenses=true \
+            -v "${{ steps.params.outputs.VFLAG }}"
+
+          kill $HB_PID >/dev/null 2>&1 || true
+          trap - EXIT
+
+      - name: Build (com binlog + console verbose + heartbeat)
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -371,19 +296,30 @@ jobs:
           EXTRA_PROPS=()
           EXTRA_PROPS+=("-p:AndroidSdkDirectory=${ANDROID_SDK_DIR}")
           EXTRA_PROPS+=("-p:AcceptAndroidSDKLicenses=true")
-
-          # Força RID para matar warning de AndroidSupportedAbis e garantir arm64
           EXTRA_PROPS+=("-p:RuntimeIdentifiers=${RID}")
 
-          # Se o usuário setar package_format, sobrescreve o csproj
           if [ -n "${PKG}" ]; then
             EXTRA_PROPS+=("-p:AndroidPackageFormat=${PKG}")
           fi
 
-          echo "dotnet build ${PROJECT_FILE} -c ${CONFIG} -v ${VFLAG} ${EXTRA_PROPS[*]}"
-          dotnet build "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" "${EXTRA_PROPS[@]}"
+          # Logger parameters (mostra mais o que está acontecendo)
+          CLP="Summary;Verbosity=${VFLAG};ShowTimestamp"
 
-      - name: Publish (Android)
+          # Heartbeat pra não ficar “silencioso”
+          ( while true; do echo "[heartbeat] $(date -u) build rodando..."; sleep 60; done ) &
+          HB_PID=$!
+          trap 'kill $HB_PID >/dev/null 2>&1 || true' EXIT
+
+          echo "CMD: dotnet build ${PROJECT_FILE} -c ${CONFIG} -v ${VFLAG}"
+          dotnet build "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" \
+            -clp:"${CLP}" \
+            -bl:"${GITHUB_WORKSPACE}/logs/build.binlog" \
+            "${EXTRA_PROPS[@]}"
+
+          kill $HB_PID >/dev/null 2>&1 || true
+          trap - EXIT
+
+      - name: Publish (com binlog + console verbose + heartbeat)
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -407,15 +343,26 @@ jobs:
           rm -rf "${GITHUB_WORKSPACE}/publish"
           mkdir -p "${GITHUB_WORKSPACE}/publish"
 
-          echo "dotnet publish ${PROJECT_FILE} -c ${CONFIG} -v ${VFLAG} -o publish ${EXTRA_PROPS[*]}"
+          CLP="Summary;Verbosity=${VFLAG};ShowTimestamp"
+
+          ( while true; do echo "[heartbeat] $(date -u) publish rodando..."; sleep 60; done ) &
+          HB_PID=$!
+          trap 'kill $HB_PID >/dev/null 2>&1 || true' EXIT
+
+          echo "CMD: dotnet publish ${PROJECT_FILE} -c ${CONFIG} -v ${VFLAG}"
           dotnet publish "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" \
             -o "${GITHUB_WORKSPACE}/publish" \
+            -clp:"${CLP}" \
+            -bl:"${GITHUB_WORKSPACE}/logs/publish.binlog" \
             "${EXTRA_PROPS[@]}"
+
+          kill $HB_PID >/dev/null 2>&1 || true
+          trap - EXIT
 
           echo "Listando publish (top 200):"
           find "${GITHUB_WORKSPACE}/publish" -type f | head -n 200 || true
 
-      - name: Locate outputs (apk/aab) + copy to artifacts
+      - name: Collect APK/AAB (agressivo) + hashes
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -424,61 +371,27 @@ jobs:
 
           mkdir -p "${GITHUB_WORKSPACE}/artifacts"
 
-          echo "Buscando APK/AAB no workspace..."
           mapfile -t BUNDLES < <(find "${GITHUB_WORKSPACE}" -type f \( -name "*.apk" -o -name "*.aab" \) | sort || true)
-
           if [ "${#BUNDLES[@]}" -eq 0 ]; then
             echo "Nenhum APK/AAB encontrado."
-            echo "Dump publish (top 300):"
-            find "${GITHUB_WORKSPACE}/publish" -type f | head -n 300 || true
-            echo "Dump src/Celeste.Android (bin/obj) (top 300):"
-            find "${GITHUB_WORKSPACE}/src/Celeste.Android" -type f | head -n 300 || true
+            echo "Dump publish (top 400):"
+            find "${GITHUB_WORKSPACE}/publish" -type f | head -n 400 || true
+            echo "Dump bin/obj Android (top 400):"
+            find "${GITHUB_WORKSPACE}/src/Celeste.Android" -type f | head -n 400 || true
             exit 1
           fi
 
-          echo "Encontrados:"
+          echo "Outputs encontrados:"
           printf '%s\n' "${BUNDLES[@]}"
 
           for b in "${BUNDLES[@]}"; do
-            base="$(basename "$b")"
-            cp -f "$b" "${GITHUB_WORKSPACE}/artifacts/${base}"
+            cp -f "$b" "${GITHUB_WORKSPACE}/artifacts/$(basename "$b")"
           done
 
-          echo "Hashes:"
           (cd "${GITHUB_WORKSPACE}/artifacts" && sha256sum * > SHA256SUMS.txt)
-
           ls -la "${GITHUB_WORKSPACE}/artifacts"
-          du -sh "${GITHUB_WORKSPACE}/artifacts" || true
 
-      - name: Extra diagnostics (se falhar, útil pra debug)
-        if: ${{ failure() }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/diagnostics.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          echo "=== ENV ==="
-          env | sort | sed -n '1,220p' || true
-
-          echo "=== DOTNET SDKs ==="
-          dotnet --list-sdks || true
-
-          echo "=== DOTNET Workloads ==="
-          dotnet workload list || true
-
-          echo "=== ANDROID SDK DIR ==="
-          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
-          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
-          ls -la "${ANDROID_SDK_DIR}" || true
-          ls -la "${ANDROID_SDK_DIR}/platforms" || true
-          ls -la "${ANDROID_SDK_DIR}/build-tools" || true
-
-          echo "=== PROJECT TREE (android) ==="
-          ls -la src/Celeste.Android || true
-          find src/Celeste.Android -maxdepth 4 -type f -name "*.cs" -o -name "*.csproj" -o -name "*.xml" | head -n 200 || true
-
-      - name: Step Summary (GITHUB_STEP_SUMMARY)
+      - name: Step Summary
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -488,7 +401,6 @@ jobs:
           JAVA_LINE="$(java -version 2>&1 | head -n 1 || true)"
           DOTNET_V="$(dotnet --version 2>/dev/null || echo 'n/a')"
           MONO_V="$(mono --version 2>/dev/null | head -n 1 || echo 'n/a')"
-          ADB_V="$(adb version 2>/dev/null | head -n 1 || echo 'n/a')"
 
           APK_COUNT="$(ls -1 artifacts/*.apk 2>/dev/null | wc -l | tr -d ' ')"
           AAB_COUNT="$(ls -1 artifacts/*.aab 2>/dev/null | wc -l | tr -d ' ')"
@@ -507,29 +419,28 @@ jobs:
             echo "| OS | ${OS_NAME} |"
             echo "| Kernel | ${KERNEL} |"
             echo "| Java | ${JAVA_LINE} |"
-            echo "| .NET SDK | ${DOTNET_V} |"
+            echo "| .NET | ${DOTNET_V} |"
             echo "| Mono | ${MONO_V} |"
-            echo "| Android APIs instaladas | ${ANDROID_API} + ${ANDROID_API_EXTRA} |"
-            echo "| Build-Tools | ${BUILD_TOOLS} |"
+            echo "| Android APIs | ${ANDROID_API} + ${ANDROID_API_EXTRA} |"
+            echo "| BuildTools | ${BUILD_TOOLS} |"
             echo "| NDK | ${NDK_VERSION} |"
             echo "| CMake | ${CMAKE_VERSION} |"
-            echo "| ANDROID_SDK_ROOT | ${ANDROID_SDK_ROOT:-unset} |"
-            echo "| Projeto | ${PROJECT_FILE} |"
             echo "| Config | ${CONFIG} |"
-            echo "| Verbose | ${VFLAG} |"
+            echo "| Verbosity | ${VFLAG} |"
             echo "| RID | ${RID} |"
-            echo "| PackageFormat override | ${PKG:-<usa csproj>} |"
+            echo "| PackageFormat override | ${PKG:-<csproj>} |"
             echo "| APKs | ${APK_COUNT} |"
             echo "| AABs | ${AAB_COUNT} |"
+            echo ""
+            echo "### Logs importantes"
+            echo "- logs/build.binlog (MSBuild binlog do build)"
+            echo "- logs/publish.binlog (MSBuild binlog do publish)"
+            echo "- logs/android-sdk.log (instalação do SDK)"
             echo ""
             echo "### SHA256"
             echo "\`\`\`"
             cat artifacts/SHA256SUMS.txt 2>/dev/null || true
             echo "\`\`\`"
-            echo ""
-            echo "### Artefatos"
-            echo "- build-output (apk/aab + SHA256SUMS.txt)"
-            echo "- build-logs (logs completos)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload build output
@@ -539,7 +450,7 @@ jobs:
           path: artifacts/
           if-no-files-found: error
 
-      - name: Upload logs
+      - name: Upload logs (inclui binlog)
         uses: actions/upload-artifact@v4
         with:
           name: build-logs

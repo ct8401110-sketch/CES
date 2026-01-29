@@ -1,4 +1,4 @@
-name: Android Build — Dockerized (Android SDK image + .NET inside container)
+name: Android Build — Dockerized (Android SDK image + .NET + workloads)
 
 on:
   workflow_dispatch:
@@ -8,36 +8,20 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: android-docker-build-${{ github.ref }}
-  cancel-in-progress: true
-
 defaults:
   run:
     shell: bash
 
 env:
-  # Fonte do Content.zip
   CONTENT_ZIP_URL: https://github.com/ASZssz/CES/releases/download/V1/Content.zip
-
-  # (Opcional) Se você souber o SHA256 exato, coloque aqui para garantir integridade.
-  # Exemplo: CONTENT_ZIP_SHA256: "0123abc... (64 hex)"
   CONTENT_ZIP_SHA256: ""
 
-  # Troca do legado GHCR -> imagem pública next-gen no Docker Hub (CircleCI)
   ANDROID_BASE_IMAGE: cimg/android:2023.10
-
-  # Canal do .NET (dentro do container). "10.0" instala a linha 10.
   DOTNET_CHANNEL: "10.0"
 
-  # Diretórios padrão no workspace
   ARTIFACTS_DIR: artifacts/containerized
   CONTENT_DL_DIR: _content_dl
   CACHE_DIR: _cache
-
-  # Projeto/solução
-  SOLUTION_FILE: src/Celeste.sln
-  ANDROID_PROJECT: src/Celeste.Android
 
 jobs:
   docker-build:
@@ -51,13 +35,7 @@ jobs:
       - name: Prepare folders
         run: |
           set -euo pipefail
-          mkdir -p "${ARTIFACTS_DIR}"
-          mkdir -p "${CONTENT_DL_DIR}"
-          mkdir -p "${CACHE_DIR}/nuget"
-          mkdir -p "${CACHE_DIR}/dotnet"
-          mkdir -p "${CACHE_DIR}/tmp"
-          echo "Workspace: $GITHUB_WORKSPACE"
-          echo "Artifacts: ${ARTIFACTS_DIR}"
+          mkdir -p "${ARTIFACTS_DIR}" "${CONTENT_DL_DIR}" "${CACHE_DIR}/nuget" "${CACHE_DIR}/dotnet" "${CACHE_DIR}/tmp"
 
       - name: Cache (NuGet + dotnet)
         uses: actions/cache@v4
@@ -65,24 +43,20 @@ jobs:
           path: |
             _cache/nuget
             _cache/dotnet
-          key: ${{ runner.os }}-celeste-android-nuget-dotnet-${{ hashFiles('**/*.csproj', '**/*.sln', '**/Directory.Packages.props', '**/global.json') }}
+          key: ${{ runner.os }}-celeste-android-${{ hashFiles('**/*.csproj', '**/*.sln', '**/Directory.Packages.props', '**/global.json') }}
           restore-keys: |
-            ${{ runner.os }}-celeste-android-nuget-dotnet-
+            ${{ runner.os }}-celeste-android-
 
       - name: Download Content.zip
         run: |
           set -euo pipefail
-          echo "Downloading Content.zip from: ${CONTENT_ZIP_URL}"
           curl -fL --retry 10 --retry-delay 3 --retry-all-errors \
             -o "${CONTENT_DL_DIR}/Content.zip" \
             "${CONTENT_ZIP_URL}"
-
           ls -lah "${CONTENT_DL_DIR}/Content.zip"
 
           if [[ -n "${CONTENT_ZIP_SHA256}" ]]; then
             echo "${CONTENT_ZIP_SHA256}  ${CONTENT_DL_DIR}/Content.zip" | sha256sum -c -
-          else
-            echo "CONTENT_ZIP_SHA256 vazio (sem verificação)."
           fi
 
       - name: Extract Content.zip
@@ -91,86 +65,67 @@ jobs:
           rm -rf "${CONTENT_DL_DIR}/Content" || true
           mkdir -p "${CONTENT_DL_DIR}/Content"
           unzip -q "${CONTENT_DL_DIR}/Content.zip" -d "${CONTENT_DL_DIR}/Content"
-          echo "Content extracted:"
           du -sh "${CONTENT_DL_DIR}/Content" || true
 
-      - name: Pull base Android image (public)
+      - name: Pull base Android image
         run: |
           set -euo pipefail
-          echo "Pulling base image: ${ANDROID_BASE_IMAGE}"
           docker pull "${ANDROID_BASE_IMAGE}"
 
-      - name: Build a dedicated builder image (Android + .NET)
+      - name: Build builder image (Android + .NET + Android workload)
         run: |
           set -euo pipefail
 
-          # Criamos um Dockerfile no próprio workflow pra garantir que:
-          # - existe dotnet dentro do container
-          # - dependências básicas (rsync/unzip/curl/ca-certificates) existem
-          # - rodamos como usuário não-root ao final (quando possível)
           cat > Dockerfile.android-dotnet <<'DOCKERFILE'
           ARG BASE_IMAGE
           FROM ${BASE_IMAGE}
 
-          # Muitos tags do cimg/android já têm bastante coisa.
-          # Garantimos o essencial para este pipeline.
           USER root
           RUN apt-get update -y && apt-get install -y --no-install-recommends \
                 ca-certificates curl unzip rsync git bash \
               && rm -rf /var/lib/apt/lists/*
 
-          # Instala .NET via dotnet-install (canal configurável)
           ARG DOTNET_CHANNEL
           ENV DOTNET_ROOT=/opt/dotnet
           ENV PATH="/opt/dotnet:${PATH}"
+          ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+          ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+          ENV NUGET_XMLDOC_MODE=skip
 
-          RUN mkdir -p /opt/dotnet && \
+          RUN mkdir -p /opt/dotnet /tmp/dotnet_home && \
               curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh && \
               chmod +x /tmp/dotnet-install.sh && \
               /tmp/dotnet-install.sh --channel "${DOTNET_CHANNEL}" --install-dir /opt/dotnet && \
               rm -f /tmp/dotnet-install.sh
 
-          # Volta para usuário padrão (se existir). Em cimg costuma existir "circleci".
-          # Se não existir, fica como root (tolerável em CI).
-          RUN id -u circleci >/dev/null 2>&1 && chown -R circleci:circleci /opt/dotnet || true
+          ENV DOTNET_CLI_HOME=/tmp/dotnet_home
+          RUN dotnet --info && \
+              dotnet workload install android --verbosity minimal
+
+          RUN id -u circleci >/dev/null 2>&1 && chown -R circleci:circleci /opt/dotnet /tmp/dotnet_home || true
           USER circleci
           WORKDIR /workspace
           DOCKERFILE
 
-          echo "Building image android-dotnet-builder..."
           docker build \
             --build-arg BASE_IMAGE="${ANDROID_BASE_IMAGE}" \
             --build-arg DOTNET_CHANNEL="${DOTNET_CHANNEL}" \
             -t android-dotnet-builder:local \
             -f Dockerfile.android-dotnet .
 
-          docker image ls | head -n 50
-
-      - name: Run build inside container (dotnet publish)
+      - name: Run build inside container
         run: |
           set -euo pipefail
 
-          # Pastas que vamos montar para cache e logs
-          mkdir -p "${ARTIFACTS_DIR}"
-          mkdir -p "${CACHE_DIR}/nuget"
-          mkdir -p "${CACHE_DIR}/dotnet"
-          mkdir -p "${CACHE_DIR}/tmp"
+          mkdir -p "${ARTIFACTS_DIR}" "${CACHE_DIR}/nuget" "${CACHE_DIR}/dotnet" "${CACHE_DIR}/tmp"
 
-          # Script que roda dentro do container (fica salvo como artifact também)
           cat > "${ARTIFACTS_DIR}/container_build.sh" <<'IN_CONTAINER'
           set -euo pipefail
 
-          echo "== Container environment =="
-          whoami || true
-          uname -a || true
-          echo "PWD=$(pwd)"
-          echo "PATH=$PATH"
-
           echo "== Tool versions =="
-          command -v java >/dev/null 2>&1 && java -version || echo "java not found"
-          command -v dotnet >/dev/null 2>&1 && dotnet --info || { echo "dotnet not found"; exit 2; }
+          dotnet --info
 
-          # Detecta ANDROID_SDK_ROOT automaticamente
+          # Detecta ANDROID_SDK_ROOT
           if [[ -d "/opt/android-sdk" ]]; then
             export ANDROID_SDK_ROOT="/opt/android-sdk"
           elif [[ -d "/opt/android/sdk" ]]; then
@@ -180,42 +135,37 @@ jobs:
           elif [[ -d "/android-sdk" ]]; then
             export ANDROID_SDK_ROOT="/android-sdk"
           else
-            echo "[FATAL] Não consegui achar Android SDK no container."
-            echo "Tente listar /opt e /home:"
+            echo "[FATAL] Android SDK não encontrado no container."
             ls -la /opt || true
             ls -la /home || true
             exit 3
           fi
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
 
-          # Configura caches do dotnet/nuget em dirs montados (persistem via actions/cache)
           export DOTNET_CLI_HOME="/workspace/_cache/dotnet"
           export NUGET_PACKAGES="/workspace/_cache/nuget"
           export TMPDIR="/workspace/_cache/tmp"
+          export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+          export DOTNET_CLI_TELEMETRY_OPTOUT=1
 
-          echo "DOTNET_CLI_HOME=${DOTNET_CLI_HOME}"
-          echo "NUGET_PACKAGES=${NUGET_PACKAGES}"
-          echo "TMPDIR=${TMPDIR}"
+          echo "== Workloads =="
+          dotnet workload list || true
+          if ! dotnet workload list | grep -qiE 'android'; then
+            echo "[WARN] android workload ausente; instalando..."
+            dotnet workload install android -v minimal
+          fi
 
-          # Copia Content extraído para o projeto
-          echo "== Sync Content into project =="
+          echo "== Sync Content =="
           mkdir -p "src/Celeste.Android/Content"
           rsync -a --info=stats2 "/workspace/_content_dl/Content/" "src/Celeste.Android/Content/"
 
-          # Log de estrutura (ajuda debug)
-          echo "== Listing project structure (partial) =="
-          ls -la "src" || true
-          ls -la "src/Celeste.Android" || true
-
-          echo "== dotnet restore =="
+          echo "== Restore =="
           dotnet restore "/workspace/src/Celeste.sln" \
             -p:AndroidSdkDirectory="${ANDROID_SDK_ROOT}" \
             -v minimal
 
-          echo "== dotnet publish =="
+          echo "== Publish =="
           mkdir -p "/workspace/artifacts/containerized"
-
-          # Publica e salva log completo (falha deve falhar o step)
           dotnet publish "/workspace/src/Celeste.Android" \
             -c Release \
             -o "/workspace/artifacts/containerized" \
@@ -223,20 +173,15 @@ jobs:
             -v minimal \
             2>&1 | tee "/workspace/artifacts/containerized/publish_log.txt"
 
-          echo "== Output files =="
+          echo "== Output =="
           ls -lah "/workspace/artifacts/containerized" || true
           IN_CONTAINER
 
           chmod +x "${ARTIFACTS_DIR}/container_build.sh"
 
-          echo "Starting container build..."
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/workspace" \
             -w /workspace \
-            -e "CONTENT_ZIP_URL=${CONTENT_ZIP_URL}" \
-            -e "DOTNET_CLI_HOME=/workspace/_cache/dotnet" \
-            -e "NUGET_PACKAGES=/workspace/_cache/nuget" \
-            -e "TMPDIR=/workspace/_cache/tmp" \
             android-dotnet-builder:local \
             /bin/bash -lc "/workspace/${ARTIFACTS_DIR}/container_build.sh"
 
@@ -247,23 +192,8 @@ jobs:
           name: celeste-android-docker
           path: |
             artifacts/containerized
-            _cache/dotnet/*.log
-            _cache/dotnet/**/*
-            _cache/tmp/**/*
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Upload diagnostic logs (always)
-        if: always()
-        run: |
-          set -euo pipefail
-          echo "== Diagnostics on runner =="
-          docker images | head -n 200 || true
-          docker ps -a || true
-          echo "Artifacts dir:"
-          ls -lah "${ARTIFACTS_DIR}" || true
-          echo "Cache dir:"
-          du -sh "${CACHE_DIR}" || true
 
       - name: Cleanup (always)
         if: always()

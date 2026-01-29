@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_DIR }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-api${{ env.ANDROID_API_EXTRA }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v7
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-api${{ env.ANDROID_API_EXTRA }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v8
 
       - name: Cache NuGet
         uses: actions/cache@v4
@@ -181,7 +181,6 @@ jobs:
           set -o pipefail
           [ "$inst_rc" -eq 0 ] || (echo "Falha install SDK rc=$inst_rc" && exit "$inst_rc")
 
-          ls -la "${SDK}/platforms" || true
           adb version || true
 
           echo "${SDK}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
@@ -197,16 +196,10 @@ jobs:
           exec > >(tee -a "$LOG") 2>&1
 
           test -f "${PROJECT_FILE}" || (echo "PROJECT_FILE não existe: ${PROJECT_FILE}" && ls -la && exit 1)
-          dotnet restore "${PROJECT_FILE}"
 
-      - name: Install Android dependencies (target do .NET) [opcional/robusto]
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="${GITHUB_WORKSPACE}/logs/install-android-deps.log"
-          exec > >(tee -a "$LOG") 2>&1
-
-          dotnet build "${PROJECT_FILE}" -t:InstallAndroidDependencies -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" || true
+          dotnet restore "${PROJECT_FILE}" \
+            -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" \
+            -p:AcceptAndroidSDKLicenses=true
 
       - name: Content.zip (opcional)
         if: ${{ env.CONTENT_ZIP_URL != '' }}
@@ -222,7 +215,7 @@ jobs:
           rm -f /tmp/Content.zip
           du -sh "${CONTENT_DEST_DIR}" || true
 
-      - name: Build + Publish APK
+      - name: Build + Publish APK (com AcceptAndroidSDKLicenses)
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -241,8 +234,15 @@ jobs:
           fi
 
           echo "CONFIG=${CONFIG}"
-          dotnet build "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}"
-          dotnet publish "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" -o "${GITHUB_WORKSPACE}/publish"
+
+          dotnet build "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" \
+            -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" \
+            -p:AcceptAndroidSDKLicenses=true
+
+          dotnet publish "${PROJECT_FILE}" -c "${CONFIG}" -v "${VFLAG}" \
+            -p:AndroidSdkDirectory="${ANDROID_SDK_DIR}" \
+            -p:AcceptAndroidSDKLicenses=true \
+            -o "${GITHUB_WORKSPACE}/publish"
 
       - name: Collect APK/AAB + hashes
         shell: bash
@@ -257,7 +257,7 @@ jobs:
           if [ "${#BUNDLES[@]}" -eq 0 ]; then
             echo "Nenhum APK/AAB encontrado."
             echo "Listando pasta publish:"
-            find "${GITHUB_WORKSPACE}/publish" -maxdepth 6 -type f | head -n 200 || true
+            find "${GITHUB_WORKSPACE}/publish" -maxdepth 8 -type f | head -n 250 || true
             exit 1
           fi
 
@@ -299,6 +299,7 @@ jobs:
             echo "| ANDROID_SDK_ROOT | ${ANDROID_SDK_ROOT:-unset} |"
             echo "| ADB | ${ADB_V} |"
             echo "| Projeto | ${PROJECT_FILE} |"
+            echo "| AcceptAndroidSDKLicenses | true |"
             echo "| APKs | ${APK_COUNT} |"
             echo "| AABs | ${AAB_COUNT} |"
             echo ""

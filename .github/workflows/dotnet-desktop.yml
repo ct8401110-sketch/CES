@@ -1,4 +1,4 @@
-name: Bootstrap Android + .NET + MonoGame (Avançado Completo)
+name: Bootstrap Android + .NET + MonoGame (Final)
 
 on:
   push:
@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_DIR }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v3
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v4
 
       - name: Cache NuGet
         uses: actions/cache@v4
@@ -92,7 +92,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Detect Node lockfile (evita erro do cache)
+      - name: Detect Node lockfile
         id: node_lock
         shell: bash
         run: |
@@ -103,14 +103,14 @@ jobs:
             echo "has_lock=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Setup Node.js 20 (com cache quando existir lockfile)
+      - name: Setup Node.js 20 (cache se tiver lockfile)
         if: steps.node_lock.outputs.has_lock == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Setup Node.js 20 (sem cache quando não existir lockfile)
+      - name: Setup Node.js 20 (sem cache)
         if: steps.node_lock.outputs.has_lock != 'true'
         uses: actions/setup-node@v4
         with:
@@ -135,13 +135,10 @@ jobs:
             dotnet workload install android
           fi
 
-          dotnet workload list | sed -n '1,200p' || true
+          dotnet workload list | sed -n '1,220p' || true
 
       - name: Android SDK (cmdline-tools + packages)
         shell: bash
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_DIR }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_DIR }}
         run: |
           set -Eeuo pipefail
           LOG="${GITHUB_WORKSPACE}/logs/android-sdk.log"
@@ -149,16 +146,20 @@ jobs:
 
           SDK="${ANDROID_SDK_DIR}"
           mkdir -p "${SDK}/cmdline-tools" "${SDK}/platform-tools"
+          mkdir -p "${HOME}/.android"
+          touch "${HOME}/.android/repositories.cfg"
 
           if [ ! -d "${SDK}/cmdline-tools/latest" ]; then
             TMP_ZIP="/tmp/cmdline-tools.zip"
             TMP_DIR="/tmp/cmdline-extract"
+
             curl -fsSL "${CMDLINE_TOOLS_URL}" -o "${TMP_ZIP}"
             rm -rf "${TMP_DIR}"
             mkdir -p "${TMP_DIR}"
             unzip -q "${TMP_ZIP}" -d "${TMP_DIR}"
 
             mkdir -p "${SDK}/cmdline-tools/latest"
+
             if [ -d "${TMP_DIR}/cmdline-tools" ]; then
               cp -R "${TMP_DIR}/cmdline-tools/"* "${SDK}/cmdline-tools/latest/"
             elif [ -d "${TMP_DIR}/tools" ]; then
@@ -170,15 +171,26 @@ jobs:
             rm -rf "${TMP_DIR}" "${TMP_ZIP}"
           fi
 
-          echo "${SDK}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
-          echo "${SDK}/platform-tools" >> "${GITHUB_PATH}"
-          echo "ANDROID_HOME=${SDK}" >> "${GITHUB_ENV}"
-          echo "ANDROID_SDK_ROOT=${SDK}" >> "${GITHUB_ENV}"
+          export ANDROID_HOME="${SDK}"
+          export ANDROID_SDK_ROOT="${SDK}"
+          export PATH="${SDK}/cmdline-tools/latest/bin:${SDK}/platform-tools:${PATH}"
 
-          sdkmanager --version
-          yes | sdkmanager --licenses >/dev/null
+          SDKMANAGER="${SDK}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            chmod +x "$SDKMANAGER" || true
+          fi
 
-          yes | sdkmanager --install \
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "sdkmanager não encontrado/exec em: $SDKMANAGER"
+            ls -la "${SDK}/cmdline-tools/latest" || true
+            ls -la "${SDK}/cmdline-tools/latest/bin" || true
+            exit 1
+          fi
+
+          "$SDKMANAGER" --version
+          yes | "$SDKMANAGER" --licenses >/dev/null
+
+          yes | "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-${ANDROID_API}" \
             "build-tools;${BUILD_TOOLS}" \
@@ -187,8 +199,10 @@ jobs:
 
           adb version || true
 
-          echo "SDK_DIR=${SDK}" >> "${GITHUB_OUTPUT}"
-          echo "SDK_PACKAGES_OK=1" >> "${GITHUB_OUTPUT}"
+          echo "${SDK}/cmdline-tools/latest/bin" >> "${GITHUB_PATH}"
+          echo "${SDK}/platform-tools" >> "${GITHUB_PATH}"
+          echo "ANDROID_HOME=${SDK}" >> "${GITHUB_ENV}"
+          echo "ANDROID_SDK_ROOT=${SDK}" >> "${GITHUB_ENV}"
 
       - name: Mono (mono-complete)
         shell: bash
@@ -212,11 +226,9 @@ jobs:
           dotnet tool install --global dotnet-mgcb-editor || true
 
           echo "${HOME}/.dotnet/tools" >> "${GITHUB_PATH}"
-
-          dotnet --list-sdks || true
           dotnet-mgcb-editor --help >/dev/null 2>&1 || true
 
-      - name: Smoke checks (tooling)
+      - name: Smoke checks
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -225,15 +237,21 @@ jobs:
 
           echo "JAVA_HOME=${JAVA_HOME:-unset}"
           java -version 2>&1 | head -n 2 || true
-          echo "NODE=$(node -v 2>/dev/null || true)"
-          echo "NPM=$(npm -v 2>/dev/null || true)"
-          echo "DOTNET=$(dotnet --version 2>/dev/null || true)"
-          echo "SDKMANAGER=$(command -v sdkmanager 2>/dev/null || true)"
-          echo "ADB=$(command -v adb 2>/dev/null || true)"
-          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
-          ls -la "${ANDROID_SDK_ROOT:-/dev/null}" || true
 
-      - name: Build summary (GITHUB_STEP_SUMMARY)
+          echo "NODE=$(node -v 2>/dev/null || echo n/a)"
+          echo "NPM=$(npm -v 2>/dev/null || echo n/a)"
+
+          echo "DOTNET=$(dotnet --version 2>/dev/null || echo n/a)"
+          dotnet --list-sdks || true
+          dotnet workload list || true
+
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
+          command -v sdkmanager || true
+          command -v adb || true
+
+          adb version || true
+
+      - name: Build summary
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -245,7 +263,7 @@ jobs:
           NPM_V="$(npm -v 2>/dev/null || echo 'n/a')"
           DOTNET_V="$(dotnet --version 2>/dev/null || echo 'n/a')"
           MONO_V="$(mono --version 2>/dev/null | head -n 1 || echo 'n/a')"
-          ADB_V="$("${ANDROID_SDK_ROOT}/platform-tools/adb" version 2>/dev/null | head -n 1 || echo 'n/a')"
+          ADB_V="$("${ANDROID_SDK_ROOT:-/dev/null}/platform-tools/adb" version 2>/dev/null | head -n 1 || echo 'n/a')"
 
           {
             echo "## Summary do Bootstrap"
@@ -267,8 +285,7 @@ jobs:
             echo "| ANDROID_SDK_ROOT | ${ANDROID_SDK_ROOT:-unset} |"
             echo "| ADB | ${ADB_V} |"
             echo ""
-            echo "### Logs"
-            echo "- Artefato: bootstrap-logs (pasta logs/)"
+            echo "Logs: artifact bootstrap-logs (pasta logs/)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload logs artifact

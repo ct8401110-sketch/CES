@@ -22,6 +22,8 @@
     
     <!-- Arquitetura: 64-bit ARM only (obrigatório em 2024+) -->
     <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <!-- Android ABIs (garante empacotamento das libs nativas arm64-v8a) -->
+    <AndroidSupportedAbis>arm64-v8a</AndroidSupportedAbis>
     
     <!-- =============================================== -->
     <!-- OTIMIZAÇÕES DE PERFORMANCE                       -->
@@ -112,6 +114,11 @@
     </MonoGameContentReference>
   </ItemGroup>
   
+  <!-- Native libraries (ex.: FMOD) empacotadas em jniLibs/arm64-v8a -->
+  <ItemGroup>
+    <AndroidNativeLibrary Include="jniLibs\arm64-v8a\*.so" />
+  </ItemGroup>
+
   <!-- Assets Brutos: Todos os arquivos em Content/ -->
   <!-- Serão incluídos no APK durante compilação      -->
   <ItemGroup>

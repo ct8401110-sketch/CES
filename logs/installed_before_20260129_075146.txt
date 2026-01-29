@@ -1,0 +1,11 @@
+Extensões instaladas em Codespaces: organic xylophone:
+github.codespaces
+github.copilot
+github.copilot-chat
+github.github-vscode-theme
+github.vscode-pull-request-github
+ms-ceintl.vscode-language-pack-pt-br
+ms-python.debugpy
+ms-python.python
+ms-python.vscode-pylance
+ms-python.vscode-python-envs

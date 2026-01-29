@@ -77,6 +77,11 @@
           },
           "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json"
         }
+      },
+      "runtimes": {
+        "android-arm64": {
+          "#import": []
+        }
       }
     }
   }

@@ -24,6 +24,25 @@ namespace Celeste.Android
 		{
 			base.OnCreate(savedInstanceState);
 
+			// Extrair assets "Content/" para app-specific storage para compatibilidade
+			try
+			{
+				var targetBase = this.GetExternalFilesDir(null)?.AbsolutePath ?? this.FilesDir.AbsolutePath;
+				var contentTarget = System.IO.Path.Combine(targetBase, "Content");
+				CopyAssetFolder("Content", contentTarget);
+				// Ajusta AssemblyDirectory interno do Monocle.Engine para apontar ao app-specific
+				var engineType = typeof(Monocle.Engine);
+				var field = engineType.GetField("AssemblyDirectory", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+				if (field != null)
+				{
+					field.SetValue(null, targetBase);
+				}
+			}
+			catch (System.Exception ex)
+			{
+				Android.Util.Log.Warn("Celeste", "Asset extraction failed: " + ex.Message);
+			}
+
 			// Initialize platform and logging
 			ServiceLocator.RegisterPlatformService(new AndroidPlatformService(this));
 			ServiceLocator.RegisterLogSystem(new AndroidLogSystem(this));
@@ -33,6 +52,47 @@ namespace Celeste.Android
 			_game = new Game1();
 			SetContentView(_game.Services.GetService(typeof(View)) as View);
 			_game.Run();
+		}
+
+		private void CopyAssetFolder(string assetPath, string destPath)
+		{
+			var assets = this.Assets;
+			System.IO.Directory.CreateDirectory(destPath);
+			string[] list = assets.List(assetPath);
+			if (list == null || list.Length == 0)
+			{
+				// arquivo simples
+				using (var istream = assets.Open(assetPath))
+				using (var of = System.IO.File.Create(destPath))
+				{
+					istream.CopyTo(of);
+				}
+				return;
+			}
+
+			foreach (var entry in list)
+			{
+				var fullAsset = assetPath + "/" + entry;
+				var subList = assets.List(fullAsset);
+				if (subList != null && subList.Length > 0)
+				{
+					// diretório
+					CopyAssetFolder(fullAsset, System.IO.Path.Combine(destPath, entry));
+				}
+				else
+				{
+					// arquivo
+					using (var istream = assets.Open(fullAsset))
+					{
+						var outPath = System.IO.Path.Combine(destPath, entry);
+						System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(outPath));
+						using (var of = System.IO.File.Create(outPath))
+						{
+							istream.CopyTo(of);
+						}
+					}
+				}
+			}
 		}
 
 		protected override void OnPause()

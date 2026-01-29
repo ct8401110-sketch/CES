@@ -1,0 +1,5 @@
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/android-arm64/mgcb.tool.restore
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/android-arm64/.NETCoreApp,Version=v9.0.AssemblyAttributes.cs
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/android-arm64/build.props
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/android-arm64/adb.props
+/workspaces/CES/src/Celeste.Android/obj/Release/net9.0-android/android-arm64/_CompileBindingJava.FileList.txt

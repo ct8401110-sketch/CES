@@ -1,0 +1,211 @@
+[INFO] Iniciando instalação de extensões...
+[INFO] Log: ./logs/extensions_install_20260129_075245.log
+[INFO] Usando binário: code
+------------------------------------------------------------
+[INFO] Extensão: 13xforever.language-x86-64-assembly | Versão: 3.1.5
+[SKIP] Já instalada: 13xforever.language-x86-64-assembly
+------------------------------------------------------------
+[INFO] Extensão: adelphes.android-dev-ext | Versão: 1.4.0
+[SKIP] Já instalada: adelphes.android-dev-ext
+------------------------------------------------------------
+[INFO] Extensão: adetoola.zip-files | Versão: 0.0.2
+[SKIP] Já instalada: adetoola.zip-files
+------------------------------------------------------------
+[INFO] Extensão: bbenoist.doxygen | Versão: 1.0.0
+[SKIP] Já instalada: bbenoist.doxygen
+------------------------------------------------------------
+[INFO] Extensão: cheshirekow.cmake-format | Versão: 0.6.11
+[SKIP] Já instalada: cheshirekow.cmake-format
+------------------------------------------------------------
+[INFO] Extensão: cschlosser.doxdocgen | Versão: 1.4.0
+[INFO] Tentando instalar: cschlosser.doxdocgen@1.4.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'cschlosser.doxdocgen' v1.4.0...
+A extensão 'cschlosser.doxdocgen' v1.4.0 foi instalada com êxito.
+[OK] Instalado (versão exata): cschlosser.doxdocgen@1.4.0
+------------------------------------------------------------
+[INFO] Extensão: danielpinto8zz6.c-cpp-project-generator | Versão: 1.2.20
+[INFO] Tentando instalar: danielpinto8zz6.c-cpp-project-generator@1.2.20
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'danielpinto8zz6.c-cpp-project-generator' v1.2.20...
+A extensão 'danielpinto8zz6.c-cpp-project-generator' v1.2.20 foi instalada com êxito.
+[OK] Instalado (versão exata): danielpinto8zz6.c-cpp-project-generator@1.2.20
+------------------------------------------------------------
+[INFO] Extensão: dart-code.dart-code | Versão: 3.126.0
+[INFO] Tentando instalar: dart-code.dart-code@3.126.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'dart-code.dart-code' v3.126.0...
+A extensão 'dart-code.dart-code' v3.126.0 foi instalada com êxito.
+[OK] Instalado (versão exata): dart-code.dart-code@3.126.0
+------------------------------------------------------------
+[INFO] Extensão: dart-code.flutter | Versão: 3.126.0
+[INFO] Tentando instalar: dart-code.flutter@3.126.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'dart-code.flutter' v3.126.0...
+A extensão 'dart-code.flutter' v3.126.0 foi instalada com êxito.
+[OK] Instalado (versão exata): dart-code.flutter@3.126.0
+------------------------------------------------------------
+[INFO] Extensão: diemasmichiels.emulate | Versão: 1.8.1
+[INFO] Tentando instalar: diemasmichiels.emulate@1.8.1
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'diemasmichiels.emulate' v1.8.1...
+A extensão 'diemasmichiels.emulate' v1.8.1 foi instalada com êxito.
+[OK] Instalado (versão exata): diemasmichiels.emulate@1.8.1
+------------------------------------------------------------
+[INFO] Extensão: dr-mohammed-hamed.android-studio-flash | Versão: 0.2.0
+[INFO] Tentando instalar: dr-mohammed-hamed.android-studio-flash@0.2.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'dr-mohammed-hamed.android-studio-flash' v0.2.0...
+A extensão 'dr-mohammed-hamed.android-studio-flash' v0.2.0 foi instalada com êxito.
+[OK] Instalado (versão exata): dr-mohammed-hamed.android-studio-flash@0.2.0
+------------------------------------------------------------
+[INFO] Extensão: eamodio.gitlens | Versão: 17.9.0
+[INFO] Tentando instalar: eamodio.gitlens@17.9.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'eamodio.gitlens' v17.9.0...
+A extensão 'eamodio.gitlens' v17.9.0 foi instalada com êxito.
+[OK] Instalado (versão exata): eamodio.gitlens@17.9.0
+------------------------------------------------------------
+[INFO] Extensão: editorconfig.editorconfig | Versão: 0.18.1
+[INFO] Tentando instalar: editorconfig.editorconfig@0.18.1
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'editorconfig.editorconfig' v0.18.1...
+A extensão 'editorconfig.editorconfig' v0.18.1 foi instalada com êxito.
+[OK] Instalado (versão exata): editorconfig.editorconfig@0.18.1
+------------------------------------------------------------
+[INFO] Extensão: franneck94.c-cpp-runner | Versão: 9.5.0
+[INFO] Tentando instalar: franneck94.c-cpp-runner@9.5.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'franneck94.c-cpp-runner' v9.5.0...
+A extensão 'franneck94.c-cpp-runner' v9.5.0 foi instalada com êxito.
+A extensão 'vadimcn.vscode-lldb' v1.11.0 foi instalada com êxito.
+A extensão 'ms-vscode.cpptools' v1.29.3 foi instalada com êxito.
+[OK] Instalado (versão exata): franneck94.c-cpp-runner@9.5.0
+------------------------------------------------------------
+[INFO] Extensão: franneck94.vscode-c-cpp-config | Versão: 6.3.0
+[INFO] Tentando instalar: franneck94.vscode-c-cpp-config@6.3.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'franneck94.vscode-c-cpp-config' v6.3.0...
+A extensão 'franneck94.vscode-c-cpp-config' v6.3.0 foi instalada com êxito.
+[OK] Instalado (versão exata): franneck94.vscode-c-cpp-config@6.3.0
+------------------------------------------------------------
+[INFO] Extensão: franneck94.vscode-c-cpp-dev-extension-pack | Versão: 0.10.0
+[INFO] Tentando instalar: franneck94.vscode-c-cpp-dev-extension-pack@0.10.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'franneck94.vscode-c-cpp-dev-extension-pack' v0.10.0...
+A extensão 'ms-vscode.cpptools-extension-pack' v1.3.1 foi instalada com êxito.
+A extensão 'franneck94.vscode-c-cpp-dev-extension-pack' v0.10.0 foi instalada com êxito.
+A extensão 'ms-vscode.cpptools-themes' v2.0.0 foi instalada com êxito.
+A extensão 'jeff-hykin.better-cpp-syntax' v1.27.1 foi instalada com êxito.
+A extensão 'twxs.cmake' v0.0.17 foi instalada com êxito.
+A extensão 'ms-vscode.cmake-tools' v1.22.26 foi instalada com êxito.
+[OK] Instalado (versão exata): franneck94.vscode-c-cpp-dev-extension-pack@0.10.0
+------------------------------------------------------------
+[INFO] Extensão: github.codespaces | Versão: 1.18.5
+[SKIP] Já instalada: github.codespaces
+------------------------------------------------------------
+[INFO] Extensão: github.copilot | Versão: 1.388.0
+[SKIP] Já instalada: github.copilot
+------------------------------------------------------------
+[INFO] Extensão: github.copilot-chat | Versão: 0.36.2
+[SKIP] Já instalada: github.copilot-chat
+------------------------------------------------------------
+[INFO] Extensão: github.github-vscode-theme | Versão: 6.3.5
+[SKIP] Já instalada: github.github-vscode-theme
+------------------------------------------------------------
+[INFO] Extensão: github.vscode-pull-request-github | Versão: 0.126.0
+[SKIP] Já instalada: github.vscode-pull-request-github
+------------------------------------------------------------
+[INFO] Extensão: haloscript.astyle-lsp-vscode | Versão: 0.0.1
+[INFO] Tentando instalar: haloscript.astyle-lsp-vscode@0.0.1
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'haloscript.astyle-lsp-vscode' v0.0.1...
+A extensão 'haloscript.astyle-lsp-vscode' v0.0.1 foi instalada com êxito.
+[OK] Instalado (versão exata): haloscript.astyle-lsp-vscode@0.0.1
+------------------------------------------------------------
+[INFO] Extensão: hanwang.android-adb-wlan | Versão: 0.0.10
+[INFO] Tentando instalar: hanwang.android-adb-wlan@0.0.10
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'hanwang.android-adb-wlan' v0.0.10...
+A extensão 'hanwang.android-adb-wlan' v0.0.10 foi instalada com êxito.
+[OK] Instalado (versão exata): hanwang.android-adb-wlan@0.0.10
+------------------------------------------------------------
+[INFO] Extensão: jeff-hykin.better-cpp-syntax | Versão: 1.27.1
+[SKIP] Já instalada: jeff-hykin.better-cpp-syntax
+------------------------------------------------------------
+[INFO] Extensão: jnoortheen.nix-ide | Versão: 0.5.5
+[INFO] Tentando instalar: jnoortheen.nix-ide@0.5.5
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'jnoortheen.nix-ide' v0.5.5...
+A extensão 'jnoortheen.nix-ide' v0.5.5 foi instalada com êxito.
+[OK] Instalado (versão exata): jnoortheen.nix-ide@0.5.5
+------------------------------------------------------------
+[INFO] Extensão: kelvin.vscode-sshfs | Versão: 1.26.1
+[INFO] Tentando instalar: kelvin.vscode-sshfs@1.26.1
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'kelvin.vscode-sshfs' v1.26.1...
+A extensão 'kelvin.vscode-sshfs' v1.26.1 foi instalada com êxito.
+[OK] Instalado (versão exata): kelvin.vscode-sshfs@1.26.1
+------------------------------------------------------------
+[INFO] Extensão: kylinideteam.cmake-intellisence | Versão: 0.4.0
+[INFO] Tentando instalar: kylinideteam.cmake-intellisence@0.4.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'kylinideteam.cmake-intellisence' v0.4.0...
+A extensão 'kylinideteam.cmake-intellisence' v0.4.0 foi instalada com êxito.
+[OK] Instalado (versão exata): kylinideteam.cmake-intellisence@0.4.0
+------------------------------------------------------------
+[INFO] Extensão: kylinideteam.cppdebug | Versão: 0.2.0
+[INFO] Tentando instalar: kylinideteam.cppdebug@0.2.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'kylinideteam.cppdebug' v0.2.0...
+A extensão 'kylinideteam.cppdebug' v0.2.0 foi instalada com êxito.
+[OK] Instalado (versão exata): kylinideteam.cppdebug@0.2.0
+------------------------------------------------------------
+[INFO] Extensão: kylinideteam.kylin-clangd | Versão: 0.5.0
+[INFO] Tentando instalar: kylinideteam.kylin-clangd@0.5.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'kylinideteam.kylin-clangd' v0.5.0...
+A extensão 'kylinideteam.kylin-clangd' v0.5.0 foi instalada com êxito.
+[OK] Instalado (versão exata): kylinideteam.kylin-clangd@0.5.0
+------------------------------------------------------------
+[INFO] Extensão: kylinideteam.kylin-cmake-tools | Versão: 0.0.4
+[INFO] Tentando instalar: kylinideteam.kylin-cmake-tools@0.0.4
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'kylinideteam.kylin-cmake-tools' v0.0.4...
+A extensão 'kylinideteam.kylin-cmake-tools' v0.0.4 foi instalada com êxito.
+[OK] Instalado (versão exata): kylinideteam.kylin-cmake-tools@0.0.4
+------------------------------------------------------------
+[INFO] Extensão: kylinideteam.kylin-cpp-pack | Versão: 0.1.0
+[INFO] Tentando instalar: kylinideteam.kylin-cpp-pack@0.1.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'kylinideteam.kylin-cpp-pack' v0.1.0...
+A extensão 'kylinideteam.kylin-cpp-pack' v0.1.0 foi instalada com êxito.
+[OK] Instalado (versão exata): kylinideteam.kylin-cpp-pack@0.1.0
+------------------------------------------------------------
+[INFO] Extensão: llvm-vs-code-extensions.vscode-clangd | Versão: 0.4.0
+[INFO] Tentando instalar: llvm-vs-code-extensions.vscode-clangd@0.4.0
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'llvm-vs-code-extensions.vscode-clangd' v0.4.0...
+A extensão 'llvm-vs-code-extensions.vscode-clangd' v0.4.0 foi instalada com êxito.
+[OK] Instalado (versão exata): llvm-vs-code-extensions.vscode-clangd@0.4.0
+------------------------------------------------------------
+[INFO] Extensão: lonedev.ia-vscode | Versão: 0.2.37
+[INFO] Tentando instalar: lonedev.ia-vscode@0.2.37
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'lonedev.ia-vscode' v0.2.37...
+A extensão 'redhat.vscode-yaml' v1.19.1 foi instalada com êxito.
+A extensão 'lonedev.ia-vscode' v0.2.37 foi instalada com êxito.
+[OK] Instalado (versão exata): lonedev.ia-vscode@0.2.37
+------------------------------------------------------------
+[INFO] Extensão: mitaki28.vscode-clang | Versão: 0.2.4
+[INFO] Tentando instalar: mitaki28.vscode-clang@0.2.4
+Instalando as extensões em Codespaces: organic xylophone...
+Instalando a extensão 'mitaki28.vscode-clang' v0.2.4...
+A extensão 'mitaki28.vscode-clang' v0.2.4 foi instalada com êxito.
+[OK] Instalado (versão exata): mitaki28.vscode-clang@0.2.4
+------------------------------------------------------------
+[INFO] Extensão: ms-ceintl.vscode-language-pack-pt-br | Versão: 1.108.2026012809
+[SKIP] Já instalada: ms-ceintl.vscode-language-pack-pt-br
+------------------------------------------------------------
+[INFO] Extensão: ms-dotnettools.csdevkit | Versão: 1.90.2
+[INFO] Tentando instalar: ms-dotnettools.csdevkit@1.90.2

@@ -662,7 +662,7 @@
           },
           {
             "name": "Microsoft.NETCore.App.Ref",
-            "version": "[9.0.12, 9.0.12]"
+            "version": "[9.0.11, 9.0.11]"
           }
         ],
         "frameworkReferences": {

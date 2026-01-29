@@ -50,8 +50,7 @@
     <!-- Áudio (sem permissão, acesso ao mixer) -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
-    <!-- Permissões de SDK 31+ (Android 12+) -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- Permissões restritas: buscar apenas as necessárias (evitar QUERY_ALL_PACKAGES) -->
 
     <!-- Aplicação -->
     <application

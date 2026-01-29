@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_DIR }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v4
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}-cmake${{ env.CMAKE_VERSION }}-v5
 
       - name: Cache NuGet
         uses: actions/cache@v4
@@ -188,14 +188,31 @@ jobs:
           fi
 
           "$SDKMANAGER" --version
-          yes | "$SDKMANAGER" --licenses >/dev/null
 
+          # Com pipefail ativo, "yes" costuma dar Broken pipe (exit 141) quando o sdkmanager fecha.
+          # Aqui a gente desliga pipefail só nesse trecho e valida o exit code REAL do sdkmanager.
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          lic_rc="${PIPESTATUS[1]}"
+          set -o pipefail
+          if [ "$lic_rc" -ne 0 ]; then
+            echo "Falha aceitando licenças. rc=${lic_rc}"
+            exit "$lic_rc"
+          fi
+
+          set +o pipefail
           yes | "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-${ANDROID_API}" \
             "build-tools;${BUILD_TOOLS}" \
             "ndk;${NDK_VERSION}" \
             "cmake;${CMAKE_VERSION}" >/dev/null
+          inst_rc="${PIPESTATUS[1]}"
+          set -o pipefail
+          if [ "$inst_rc" -ne 0 ]; then
+            echo "Falha instalando pacotes Android SDK. rc=${inst_rc}"
+            exit "$inst_rc"
+          fi
 
           adb version || true
 
@@ -248,7 +265,6 @@ jobs:
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
           command -v sdkmanager || true
           command -v adb || true
-
           adb version || true
 
       - name: Build summary

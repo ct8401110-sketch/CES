@@ -1,11 +1,4 @@
-
 name: Android Build — Matrix (dotnet/distro/arch)
-
-# Summary:
-# Matrix build que tenta múltiplas combinações de runtime e configuração.
-# - Executa em diferentes versões do .NET (matriz)
-# - Usa cache por combinação para acelerar builds
-# - Gera logs detalhados e artifacts separados por célula da matriz
 
 on:
   workflow_dispatch:
@@ -14,6 +7,9 @@ on:
 
 env:
   CONTENT_ZIP_URL: https://github.com/ASZssz/CES/releases/download/V1/Content.zip
+  ANDROID_API_LEVEL: "35"
+  ANDROID_BUILD_TOOLS: "35.0.0"
+  ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
 
 jobs:
   build-matrix:
@@ -25,81 +21,132 @@ jobs:
         configuration: [Release]
         arch: [arm64]
       max-parallel: 2
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET ${{ matrix.dotnet }}
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ matrix.dotnet }}
 
-      - name: Cache nuget for matrix cell
+      - name: Cache NuGet
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ matrix.dotnet }}-${{ hashFiles('**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ matrix.dotnet }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-${{ matrix.dotnet }}-
+            nuget-${{ runner.os }}-
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
-      - name: Download Content quickly
+      - name: Install OS deps
         run: |
-          mkdir -p $GITHUB_WORKSPACE/_content_dl
-          curl -fsSL -o $GITHUB_WORKSPACE/_content_dl/Content.zip "${CONTENT_ZIP_URL}"
-          unzip -q $GITHUB_WORKSPACE/_content_dl/Content.zip -d $GITHUB_WORKSPACE/_content_dl/Content
+          sudo apt-get update
+          sudo apt-get install -y unzip rsync
 
-      - name: Prepare Android SDK (cached)
+      - name: Download Content
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/_content_dl"
+          curl -fsSL -o "$GITHUB_WORKSPACE/_content_dl/Content.zip" "${CONTENT_ZIP_URL}"
+          unzip -q "$GITHUB_WORKSPACE/_content_dl/Content.zip" -d "$GITHUB_WORKSPACE/_content_dl/Content"
+
+      - name: Cache Android SDK
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.android-sdk
-            $HOME/android-sdk
-          key: ${{ runner.os }}-android-sdk-v1
+          path: ${{ github.workspace }}/.android-sdk
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API_LEVEL }}-bt${{ env.ANDROID_BUILD_TOOLS }}-v2
           restore-keys: |
-            ${{ runner.os }}-android-sdk-
+            android-sdk-${{ runner.os }}-
 
-      - name: Install Android tools (if not cached)
+      - name: Install Android cmdline-tools + packages
+        shell: bash
         run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk
-          if [ ! -f cmdline-tools/latest/bin/sdkmanager ]; then
-            curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -o cmdline-tools.zip
+          set -euo pipefail
+
+          mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools"
+          if [ ! -x "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            cd "${ANDROID_SDK_ROOT}"
+            curl -fsSL "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" -o cmdline-tools.zip
             unzip -q cmdline-tools.zip -d cmdline-tools
             mkdir -p cmdline-tools/latest
-            mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/ || true
-            yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
-            $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-35" "build-tools;33.0.2" "cmdline-tools;latest"
+            mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/
           fi
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+
+          export ANDROID_HOME="${ANDROID_SDK_ROOT}"
+          export PATH="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${PATH}"
+
+          # Aceita licenças de forma não-interativa e SEM despejar o texto no log.
+          # (No seu log, o sdkmanager entra no fluxo de "Review licenses" e "Accept? (y/N)" 1
+          # então aqui a gente força input e silencia saída.)
+          (printf 'y\n%.0s' {1..200} | sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses) >/dev/null
+
+          # Instala só o necessário
+          sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --install \
+            "platform-tools" \
+            "platforms;android-${ANDROID_API_LEVEL}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" >/dev/null
+
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=${ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
+          echo "PATH=${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${PATH}" >> "$GITHUB_ENV"
+
+      - name: Set Android arch vars
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            echo "ANDROID_RID=android-arm64" >> "$GITHUB_ENV"
+            echo "ANDROID_ABIS=arm64-v8a" >> "$GITHUB_ENV"
+          else
+            echo "ANDROID_RID=android-x64" >> "$GITHUB_ENV"
+            echo "ANDROID_ABIS=x86_64" >> "$GITHUB_ENV"
+          fi
 
       - name: Copy Content into project
         run: |
+          set -euo pipefail
           mkdir -p src/Celeste.Android/Content
-          rsync -a $GITHUB_WORKSPACE/_content_dl/Content/ src/Celeste.Android/Content/
+          rsync -a "$GITHUB_WORKSPACE/_content_dl/Content/" "src/Celeste.Android/Content/"
+
+      - name: Install/restore Android workload (dotnet)
+        run: |
+          set -euo pipefail
+          dotnet workload install android --skip-manifest-update
+          dotnet workload restore src/Celeste.sln
 
       - name: Restore
         run: dotnet restore src/Celeste.sln
 
       - name: Build
-        run: |
-          dotnet build src/Celeste.sln -c ${{ matrix.configuration }}
+        run: dotnet build src/Celeste.sln -c ${{ matrix.configuration }} --no-restore
 
       - name: Publish APK
         run: |
           set -euo pipefail
-          mkdir -p $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}
-          dotnet publish src/Celeste.Android -c ${{ matrix.configuration }} -p:AndroidSdkDirectory=$HOME/android-sdk -o $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }} 2>&1 | tee $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}/publish_log.txt
+          OUT="$GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}/${{ matrix.arch }}"
+          mkdir -p "$OUT"
+
+          dotnet publish src/Celeste.Android \
+            -c ${{ matrix.configuration }} \
+            -r "$ANDROID_RID" \
+            -p:AndroidSupportedAbis="$ANDROID_ABIS" \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidSdkDirectory="$ANDROID_SDK_ROOT" \
+            -o "$OUT" 2>&1 | tee "$OUT/publish_log.txt"
 
       - name: Upload artifact (matrix cell)
         uses: actions/upload-artifact@v4
         with:
           name: apk-${{ matrix.dotnet }}-${{ matrix.arch }}
-          path: $GITHUB_WORKSPACE/artifacts/${{ matrix.dotnet }}
+          path: ${{ github.workspace }}/artifacts/${{ matrix.dotnet }}/${{ matrix.arch }}
 
       - name: Clean
         if: always()
-        run: rm -rf $GITHUB_WORKSPACE/_content_dl || true
+        run: rm -rf "$GITHUB_WORKSPACE/_content_dl" || true
